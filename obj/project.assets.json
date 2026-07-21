@@ -710,11 +710,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "D:\\githubprojects\\MKTABA TOOLS ALL IN ONE\\image adjust lighting - and cin auto crop print\\main\\ImageAdjust.csproj",
+      "projectUniqueName": "D:\\githubprojects\\MKTABA TOOLS ALL IN ONE\\image adjust lighting - and cin auto crop print\\image adjust\\ImageAdjust.csproj",
       "projectName": "ImageAdjust",
-      "projectPath": "D:\\githubprojects\\MKTABA TOOLS ALL IN ONE\\image adjust lighting - and cin auto crop print\\main\\ImageAdjust.csproj",
+      "projectPath": "D:\\githubprojects\\MKTABA TOOLS ALL IN ONE\\image adjust lighting - and cin auto crop print\\image adjust\\ImageAdjust.csproj",
       "packagesPath": "C:\\Users\\Jaklin\\.nuget\\packages\\",
-      "outputPath": "D:\\githubprojects\\MKTABA TOOLS ALL IN ONE\\image adjust lighting - and cin auto crop print\\main\\obj\\",
+      "outputPath": "D:\\githubprojects\\MKTABA TOOLS ALL IN ONE\\image adjust lighting - and cin auto crop print\\image adjust\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\Jaklin\\AppData\\Roaming\\NuGet\\NuGet.Config",

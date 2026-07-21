@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "JQt4YqDakyY=",
+  "dgSpecHash": "eCfWDJQkqaw=",
   "success": true,
-  "projectFilePath": "D:\\githubprojects\\MKTABA TOOLS ALL IN ONE\\image adjust lighting - and cin auto crop print\\main\\ImageAdjust.csproj",
+  "projectFilePath": "D:\\githubprojects\\MKTABA TOOLS ALL IN ONE\\image adjust lighting - and cin auto crop print\\image adjust\\ImageAdjust.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Jaklin\\.nuget\\packages\\communitytoolkit.mvvm\\8.2.2\\communitytoolkit.mvvm.8.2.2.nupkg.sha512",
     "C:\\Users\\Jaklin\\.nuget\\packages\\microsoft.extensions.dependencyinjection\\6.0.0\\microsoft.extensions.dependencyinjection.6.0.0.nupkg.sha512",
