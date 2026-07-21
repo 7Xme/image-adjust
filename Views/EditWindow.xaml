@@ -1,0 +1,129 @@
+<Window x:Class="ImageAdjust.Views.EditWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:ImageAdjust.ViewModels"
+        xmlns:conv="clr-namespace:ImageAdjust.Converters"
+        Title="{Binding WindowTitle}"
+        Height="700" Width="1100"
+        FlowDirection="RightToLeft"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="ToolWindow"
+        ResizeMode="CanResizeWithGrow">
+    <Window.Resources>
+        <conv:BoolToVisibilityConverter x:Key="BoolToVis"/>
+        <Style x:Key="AdjustSlider" TargetType="Slider">
+            <Setter Property="Minimum" Value="-100"/>
+            <Setter Property="Maximum" Value="100"/>
+            <Setter Property="TickFrequency" Value="5"/>
+            <Setter Property="IsSnapToTickEnabled" Value="True"/>
+            <Setter Property="Margin" Value="0,4"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Image Preview -->
+        <Grid Grid.Column="0" Background="#2D2D2D">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Zoom toolbar -->
+            <Border Grid.Row="0" Background="#3D3D3D" Padding="8">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <Button Command="{Binding ZoomOutCommand}" Content="🔍-" Style="{StaticResource SmallButton}" Margin="4,0"/>
+                    <TextBlock Text="{Binding ZoomLevel, StringFormat='{}{0:P0}'}"
+                               Foreground="White" VerticalAlignment="Center" Margin="8,0"
+                               FontSize="13" FontWeight="SemiBold"/>
+                    <Button Command="{Binding ZoomInCommand}" Content="🔍+" Style="{StaticResource SmallButton}" Margin="4,0"/>
+                    <Button Command="{Binding ResetZoomCommand}" Content="إعادة / Réinitialiser" Style="{StaticResource SmallButton}" Margin="16,0,4,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Preview image -->
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                <Image Source="{Binding PreviewImage}"
+                       Stretch="Uniform"
+                       RenderTransformOrigin="0.5,0.5"
+                       Margin="20">
+                    <Image.RenderTransform>
+                        <ScaleTransform ScaleX="{Binding ZoomLevel}" ScaleY="{Binding ZoomLevel}"/>
+                    </Image.RenderTransform>
+                </Image>
+            </ScrollViewer>
+        </Grid>
+
+        <!-- Adjustment Panel -->
+        <Border Grid.Column="1" Background="#F5F5F5" Width="320" Padding="16"
+                BorderBrush="#E0E0E0" BorderThickness="1,0,0,0">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <!-- Header -->
+                    <TextBlock Text="🎨 إعدادات التعديل / Paramètres d'ajustement"
+                               FontSize="16" FontWeight="Bold" Foreground="#333333"
+                               Margin="0,0,0,20"/>
+
+                    <!-- Shadows -->
+                    <TextBlock Text="الظلال / Ombres (Shadows)" FontSize="13" Foreground="#555555"/>
+                    <Slider Value="{Binding Settings.Shadows}" Style="{StaticResource AdjustSlider}"/>
+                    <TextBlock Text="{Binding Settings.Shadows, StringFormat='{}{0}'}"
+                               FontSize="12" Foreground="#0078D4"
+                               HorizontalAlignment="Center" Margin="0,0,0,12"/>
+
+                    <!-- Highlights -->
+                    <TextBlock Text="الإضاءة / Hautes lumières (Highlights)" FontSize="13" Foreground="#555555"/>
+                    <Slider Value="{Binding Settings.Highlights}" Style="{StaticResource AdjustSlider}"/>
+                    <TextBlock Text="{Binding Settings.Highlights, StringFormat='{}{0}'}"
+                               FontSize="12" Foreground="#0078D4"
+                               HorizontalAlignment="Center" Margin="0,0,0,12"/>
+
+                    <!-- Saturation -->
+                    <TextBlock Text="التشبع / Saturation" FontSize="13" Foreground="#555555"/>
+                    <Slider Value="{Binding Settings.Saturation}" Style="{StaticResource AdjustSlider}"/>
+                    <TextBlock Text="{Binding Settings.Saturation, StringFormat='{}{0}'}"
+                               FontSize="12" Foreground="#0078D4"
+                               HorizontalAlignment="Center" Margin="0,0,0,12"/>
+
+                    <!-- Contrast -->
+                    <TextBlock Text="التباين / Contraste" FontSize="13" Foreground="#555555"/>
+                    <Slider Value="{Binding Settings.Contrast}" Style="{StaticResource AdjustSlider}"/>
+                    <TextBlock Text="{Binding Settings.Contrast, StringFormat='{}{0}'}"
+                               FontSize="12" Foreground="#0078D4"
+                               HorizontalAlignment="Center" Margin="0,0,0,20"/>
+
+                    <!-- Separator -->
+                    <Border Height="1" Background="#E0E0E0" Margin="0,0,0,16"/>
+
+                    <!-- Action Buttons -->
+                    <Button Command="{Binding SaveImageCommand}"
+                            Style="{StaticResource PrimaryButton}"
+                            Content="💾 حفظ الصورة / Enregistrer"
+                            Margin="0,0,0,8"
+                            Height="44"/>
+
+                    <Button Command="{Binding PrintImageCommand}"
+                            Style="{StaticResource ActionButton}"
+                            Content="🖨️ طباعة / Imprimer"
+                            Margin="0,0,0,8"
+                            Height="44"/>
+
+                    <Button Command="{Binding ResetAdjustmentsCommand}"
+                            Style="{StaticResource SecondaryButton}"
+                            Content="🔄 إعادة الضبط / Réinitialiser"
+                            Margin="0,0,0,8"
+                            Height="36"/>
+
+                    <Button IsCancel="True"
+                            Style="{StaticResource SecondaryButton}"
+                            Content="✖ إلغاء / Annuler"
+                            Height="36"/>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+    </Grid>
+</Window>

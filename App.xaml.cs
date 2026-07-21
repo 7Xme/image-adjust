@@ -1,0 +1,6 @@
+namespace ImageAdjust
+{
+    public partial class App : System.Windows.Application
+    {
+    }
+}

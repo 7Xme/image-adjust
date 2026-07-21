@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <ApplicationIcon />
+    <StartupObject>ImageAdjust.App</StartupObject>
+    <RootNamespace>ImageAdjust</RootNamespace>
+    <AssemblyName>ImageAdjust</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.2" />
+    <PackageReference Include="SkiaSharp" Version="2.88.7" />
+    <PackageReference Include="PdfSharp" Version="6.1.1" />
+  </ItemGroup>
+
+</Project>
