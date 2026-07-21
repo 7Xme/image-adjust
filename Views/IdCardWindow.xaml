@@ -7,7 +7,6 @@
         Height="800" Width="1200"
         FlowDirection="RightToLeft"
         WindowStartupLocation="CenterOwner"
-        WindowStyle="ToolWindow"
         ResizeMode="CanResizeWithGrow">
     <Window.Resources>
         <conv:BoolToVisibilityConverter x:Key="BoolToVis"/>

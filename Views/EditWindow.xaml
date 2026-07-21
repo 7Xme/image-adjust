@@ -7,8 +7,7 @@
         Height="700" Width="1100"
         FlowDirection="RightToLeft"
         WindowStartupLocation="CenterOwner"
-        ResizeMode="CanResizeWithGrow"
-        WindowStyle="ToolWindow">
+        ResizeMode="CanResizeWithGrow">
     <Window.Resources>
         <conv:BoolToVisibilityConverter x:Key="BoolToVis"/>
         <Style x:Key="AdjustSlider" TargetType="Slider">

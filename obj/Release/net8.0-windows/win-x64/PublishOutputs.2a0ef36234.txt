@@ -1,0 +1,2 @@
+D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto crop print\image adjust\bin\Release\net8.0-windows\win-x64\publish\ImageAdjust.pdb
+D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto crop print\image adjust\bin\Release\net8.0-windows\win-x64\publish\ImageAdjust.exe
