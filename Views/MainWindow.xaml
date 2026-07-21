@@ -69,7 +69,7 @@
                 <TextBlock Grid.Column="2" VerticalAlignment="Center" Margin="12,0,0,0"
                            Foreground="#0078D4" FontWeight="SemiBold">
                     <Run Text="🖼 "/>
-                    <Run Text="{Binding Images.Count}"/>
+                    <Run Text="{Binding Images.Count, Mode=OneWay}"/>
                     <Run Text=" صورة / images"/>
                 </TextBlock>
             </Grid>
@@ -190,7 +190,7 @@
                     <Run Text="تم الاختيار / Sélectionné: "/>
                     <Run Text="{Binding SelectedCount}"/>
                     <Run Text=" من / de "/>
-                    <Run Text="{Binding Images.Count}"/>
+                    <Run Text="{Binding Images.Count, Mode=OneWay}"/>
                 </TextBlock>
             </Grid>
         </Border>
