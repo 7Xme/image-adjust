@@ -15,6 +15,7 @@ namespace ImageAdjust.ViewModels
         private readonly PrintService _printService = new();
         private SKBitmap? _originalBitmap;
         private string _sourceFilePath = string.Empty;
+        private CancellationTokenSource? _cts;
 
         [ObservableProperty]
         private BitmapSource? _previewImage;
@@ -28,8 +29,6 @@ namespace ImageAdjust.ViewModels
         [ObservableProperty]
         private double _zoomLevel = 1.0;
 
-        private bool _isProcessing;
-
         public string SourceFilePath => _sourceFilePath;
 
         public EditViewModel(string filePath)
@@ -37,7 +36,7 @@ namespace ImageAdjust.ViewModels
             _sourceFilePath = filePath;
             LoadImage(filePath);
 
-            Settings.PropertyChanged += (_, _) => ApplyAdjustments();
+            Settings.PropertyChanged += (_, _) => QueuePreviewUpdate();
         }
 
         private void LoadImage(string filePath)
@@ -55,32 +54,39 @@ namespace ImageAdjust.ViewModels
             }
         }
 
-        private async void ApplyAdjustments()
+        private async void QueuePreviewUpdate()
         {
-            if (_originalBitmap == null || _isProcessing) return;
+            if (_originalBitmap == null) return;
 
-            _isProcessing = true;
+            _cts?.Cancel();
+            _cts?.Dispose();
+            _cts = new CancellationTokenSource();
+            var token = _cts.Token;
 
             try
             {
+                await Task.Delay(80, token);
+
+                if (token.IsCancellationRequested) return;
+
                 var previewSize = GetPreviewSize(_originalBitmap, 1200);
                 using var previewBmp = _originalBitmap.Resize(
                     new SKImageInfo(previewSize.width, previewSize.height), SKFilterQuality.Medium);
 
                 if (previewBmp == null) return;
+                if (token.IsCancellationRequested) return;
 
                 await Task.Run(() =>
                 {
-                    _imageService.ApplyAdjustments(previewBmp, Settings);
-                });
+                    token.ThrowIfCancellationRequested();
+                    _imageService.ApplyAdjustmentsInPlace(previewBmp, Settings);
+                }, token);
+
+                if (token.IsCancellationRequested) return;
 
                 PreviewImage = _imageService.ToBitmapSource(previewBmp);
             }
-            catch { }
-            finally
-            {
-                _isProcessing = false;
-            }
+            catch (OperationCanceledException) { }
         }
 
         private static (int width, int height) GetPreviewSize(SKBitmap bitmap, int maxDimension)

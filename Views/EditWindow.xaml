@@ -3,10 +3,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:ImageAdjust.ViewModels"
         xmlns:conv="clr-namespace:ImageAdjust.Converters"
-        Title="{Binding WindowTitle}"
-        Height="700" Width="1100"
-        FlowDirection="RightToLeft"
-        WindowStartupLocation="CenterOwner"
+        Title="Image Adjust - Edit"
+        Height="700"
+        Width="1100"
         ResizeMode="CanResizeWithGrow">
     <Window.Resources>
         <conv:BoolToVisibilityConverter x:Key="BoolToVis"/>

@@ -17,6 +17,7 @@ namespace ImageAdjust.ViewModels
 
         private SKBitmap? _originalFront;
         private SKBitmap? _originalBack;
+        private CancellationTokenSource? _cts;
 
         [ObservableProperty]
         private BitmapSource? _frontPreview;
@@ -53,7 +54,7 @@ namespace ImageAdjust.ViewModels
             LoadImages(frontPath, backPath);
             InitCropRegions();
 
-            Settings.PropertyChanged += (_, _) => UpdatePreview();
+            Settings.PropertyChanged += (_, _) => QueuePreviewUpdate();
         }
 
         private void LoadImages(string frontPath, string backPath)
@@ -80,42 +81,55 @@ namespace ImageAdjust.ViewModels
             BackCrop.Set(0, 0, DisplayWidth, DisplayHeight);
         }
 
-        private async void UpdatePreview()
+        private async void QueuePreviewUpdate()
         {
-            if (_originalFront == null || _originalBack == null || IsProcessing) return;
+            if (_originalFront == null || _originalBack == null) return;
+
+            _cts?.Cancel();
+            _cts?.Dispose();
+            _cts = new CancellationTokenSource();
+            var token = _cts.Token;
 
             IsProcessing = true;
 
             try
             {
+                await Task.Delay(80, token);
+                token.ThrowIfCancellationRequested();
+
+                var scale = Math.Min(
+                    (float)DisplayWidth / _originalFront.Width,
+                    (float)DisplayHeight / _originalFront.Height);
+                int pw = (int)(_originalFront.Width * scale);
+                int ph = (int)(_originalFront.Height * scale);
+
+                using var frontResized = _originalFront.Resize(new SKImageInfo(pw, ph), SKFilterQuality.Medium);
+                using var backResized = _originalBack.Resize(new SKImageInfo(pw, ph), SKFilterQuality.Medium);
+                if (frontResized == null || backResized == null) return;
+                token.ThrowIfCancellationRequested();
+
                 await Task.Run(() =>
                 {
-                    var scale = Math.Min(
-                        (float)DisplayWidth / _originalFront.Width,
-                        (float)DisplayHeight / _originalFront.Height);
-                    int pw = (int)(_originalFront.Width * scale);
-                    int ph = (int)(_originalFront.Height * scale);
+                    token.ThrowIfCancellationRequested();
+                    _imageService.ApplyAdjustmentsInPlace(frontResized, Settings);
+                    _imageService.ApplyAdjustmentsInPlace(backResized, Settings);
+                }, token);
 
-                    using var frontPreview = _originalFront.Resize(new SKImageInfo(pw, ph), SKFilterQuality.Medium);
-                    using var backPreview = _originalBack.Resize(new SKImageInfo(pw, ph), SKFilterQuality.Medium);
+                token.ThrowIfCancellationRequested();
 
-                    if (frontPreview == null || backPreview == null) return;
-
-                    _imageService.ApplyAdjustments(frontPreview, Settings);
-                    _imageService.ApplyAdjustments(backPreview, Settings);
-
-                    Application.Current.Dispatcher.Invoke(() =>
-                    {
-                        FrontPreview = _imageService.ToBitmapSource(frontPreview);
-                        BackPreview = _imageService.ToBitmapSource(backPreview);
-                    });
-                });
+                FrontPreview = _imageService.ToBitmapSource(frontResized);
+                BackPreview = _imageService.ToBitmapSource(backResized);
             }
-            catch { }
+            catch (OperationCanceledException) { }
             finally
             {
                 IsProcessing = false;
             }
+        }
+
+        private void UpdatePreview()
+        {
+            QueuePreviewUpdate();
         }
 
         [RelayCommand]

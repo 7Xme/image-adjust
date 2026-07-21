@@ -43,22 +43,25 @@ namespace ImageAdjust.Services
             return bmp;
         }
 
+        public void ApplyAdjustmentsInPlace(SKBitmap bitmap, AdjustmentSettings settings)
+        {
+            if (settings.Contrast != 0)
+                ApplyContrast(bitmap, settings.Contrast);
+
+            if (settings.Saturation != 0)
+                ApplySaturation(bitmap, settings.Saturation);
+
+            if (settings.Shadows != 0)
+                ApplyShadows(bitmap, settings.Shadows);
+
+            if (settings.Highlights != 0)
+                ApplyHighlights(bitmap, settings.Highlights);
+        }
+
         public SKBitmap ApplyAdjustments(SKBitmap source, AdjustmentSettings settings)
         {
             var result = source.Copy();
-
-            if (settings.Contrast != 0)
-                ApplyContrast(result, settings.Contrast);
-
-            if (settings.Saturation != 0)
-                ApplySaturation(result, settings.Saturation);
-
-            if (settings.Shadows != 0)
-                ApplyShadows(result, settings.Shadows);
-
-            if (settings.Highlights != 0)
-                ApplyHighlights(result, settings.Highlights);
-
+            ApplyAdjustmentsInPlace(result, settings);
             return result;
         }
 
