@@ -15,6 +15,8 @@ namespace ImageAdjust.ViewModels
         private readonly ImageProcessingService _imageService = new();
         private readonly PdfService _pdfService = new();
         private readonly PrintService _printService = new();
+        private readonly TemplateService _templateService;
+        private CardTemplateProfile? _templateProfile;
 
         private SKBitmap? _originalFront;
         private SKBitmap? _originalBack;
@@ -58,6 +60,10 @@ namespace ImageAdjust.ViewModels
 
         public IdCardViewModel(string frontPath, string backPath)
         {
+            var templateDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "templates");
+            _templateService = new TemplateService(templateDir);
+            _templateProfile = _templateService.LoadProfile();
+
             LoadImages(frontPath, backPath);
             InitCropRegions();
 
@@ -223,7 +229,7 @@ namespace ImageAdjust.ViewModels
         private void AutoCropFront()
         {
             if (_originalFront == null) return;
-            var rect = _imageService.AutoTrimBounds(_originalFront);
+            var rect = _imageService.AutoTrimBounds(_originalFront, _templateProfile);
             float sx = (float)DisplayWidth / _originalFront.Width;
             float sy = (float)DisplayHeight / _originalFront.Height;
             FrontCrop.Set((int)(rect.Left * sx), (int)(rect.Top * sy),
@@ -237,7 +243,7 @@ namespace ImageAdjust.ViewModels
         private void AutoCropBack()
         {
             if (_originalBack == null) return;
-            var rect = _imageService.AutoTrimBounds(_originalBack);
+            var rect = _imageService.AutoTrimBounds(_originalBack, _templateProfile);
             float sx = (float)DisplayWidth / _originalBack.Width;
             float sy = (float)DisplayHeight / _originalBack.Height;
             BackCrop.Set((int)(rect.Left * sx), (int)(rect.Top * sy),

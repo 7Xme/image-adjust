@@ -18,4 +18,8 @@
     <PackageReference Include="PdfSharp" Version="6.1.1" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="templates\**\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

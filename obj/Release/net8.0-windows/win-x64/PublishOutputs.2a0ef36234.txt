@@ -1,4 +1,7 @@
 D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto crop print\image adjust\bin\Release\net8.0-windows\win-x64\publish\ImageAdjust.exe
+D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto crop print\image adjust\bin\Release\net8.0-windows\win-x64\publish\templates\Screenshot 2026-07-21 171612 - Copy.png
+D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto crop print\image adjust\bin\Release\net8.0-windows\win-x64\publish\templates\Screenshot 2026-07-21 171639 - Copy.png
+D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto crop print\image adjust\bin\Release\net8.0-windows\win-x64\publish\templates\Screenshot 2026-07-21 202716 - Copy.png
 D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto crop print\image adjust\bin\Release\net8.0-windows\win-x64\publish\ImageAdjust.dll
 D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto crop print\image adjust\bin\Release\net8.0-windows\win-x64\publish\ImageAdjust.deps.json
 D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto crop print\image adjust\bin\Release\net8.0-windows\win-x64\publish\ImageAdjust.runtimeconfig.json

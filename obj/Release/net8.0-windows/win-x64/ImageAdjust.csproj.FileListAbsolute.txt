@@ -504,3 +504,6 @@ D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto c
 D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto crop print\image adjust\obj\Release\net8.0-windows\win-x64\ImageAdjust.pdb
 D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto crop print\image adjust\obj\Release\net8.0-windows\win-x64\ImageAdjust.genruntimeconfig.cache
 D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto crop print\image adjust\obj\Release\net8.0-windows\win-x64\ref\ImageAdjust.dll
+D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto crop print\image adjust\bin\Release\net8.0-windows\win-x64\templates\Screenshot 2026-07-21 171612 - Copy.png
+D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto crop print\image adjust\bin\Release\net8.0-windows\win-x64\templates\Screenshot 2026-07-21 171639 - Copy.png
+D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto crop print\image adjust\bin\Release\net8.0-windows\win-x64\templates\Screenshot 2026-07-21 202716 - Copy.png

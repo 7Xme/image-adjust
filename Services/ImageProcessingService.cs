@@ -121,7 +121,7 @@ namespace ImageAdjust.Services
             return result;
         }
 
-        public SKRectI AutoTrimBounds(SKBitmap bitmap)
+        public SKRectI AutoTrimBounds(SKBitmap bitmap, CardTemplateProfile? profile = null)
         {
             int w = bitmap.Width, h = bitmap.Height;
             int stride = w * 4;
@@ -131,7 +131,7 @@ namespace ImageAdjust.Services
             var result = DetectByEdgeDensity(pixels, w, h, stride);
             if (result.HasValue) return result.Value;
 
-            result = DetectRedBorderRing(pixels, w, h, stride);
+            result = DetectRedBorderRing(pixels, w, h, stride, profile);
             if (result.HasValue) return result.Value;
 
             result = DetectByCombined(pixels, w, h, stride);
@@ -236,8 +236,11 @@ namespace ImageAdjust.Services
             return new SKRectI(x1, y1, x2 + 1, y2 + 1);
         }
 
-        private SKRectI? DetectRedBorderRing(byte[] pixels, int w, int h, int stride)
+        private SKRectI? DetectRedBorderRing(byte[] pixels, int w, int h, int stride, CardTemplateProfile? profile = null)
         {
+            double redThresh = profile?.MinRedness ?? 28;
+            double intThresh = profile?.MinRedIntensity ?? 55;
+
             int xMin = w, yMin = h, xMax = 0, yMax = 0, totalRed = 0;
 
             for (int y = 0; y < h; y++)
@@ -253,7 +256,7 @@ namespace ImageAdjust.Services
                     int maxOther = Math.Max(g, b);
                     int redness = r - maxOther;
 
-                    if (redness > 28 && r > 55)
+                    if (redness > redThresh && r > intThresh)
                     {
                         totalRed++;
                         if (x < xMin) xMin = x;
@@ -285,7 +288,7 @@ namespace ImageAdjust.Services
                     int r = pixels[idx + 2];
                     int g = pixels[idx + 1];
                     int b = pixels[idx];
-                    bool isRed = (r - Math.Max(g, b)) > 28 && r > 55;
+                    bool isRed = (r - Math.Max(g, b)) > redThresh && r > intThresh;
 
                     if (isRed)
                     {

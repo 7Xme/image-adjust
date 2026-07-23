@@ -1,3 +1,15 @@
+D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto crop print\image adjust\obj\Debug\net8.0-windows\ImageAdjust.csproj.AssemblyReference.cache
+D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto crop print\image adjust\obj\Debug\net8.0-windows\Styles\Styles.baml
+D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto crop print\image adjust\obj\Debug\net8.0-windows\Views\EditWindow.g.cs
+D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto crop print\image adjust\obj\Debug\net8.0-windows\Views\IdCardWindow.g.cs
+D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto crop print\image adjust\obj\Debug\net8.0-windows\Views\MainWindow.g.cs
+D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto crop print\image adjust\obj\Debug\net8.0-windows\App.g.cs
+D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto crop print\image adjust\obj\Debug\net8.0-windows\GeneratedInternalTypeHelper.g.cs
+D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto crop print\image adjust\obj\Debug\net8.0-windows\ImageAdjust_MarkupCompile.cache
+D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto crop print\image adjust\obj\Debug\net8.0-windows\ImageAdjust_MarkupCompile.lref
+D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto crop print\image adjust\bin\Debug\net8.0-windows\templates\Screenshot 2026-07-21 171612 - Copy.png
+D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto crop print\image adjust\bin\Debug\net8.0-windows\templates\Screenshot 2026-07-21 171639 - Copy.png
+D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto crop print\image adjust\bin\Debug\net8.0-windows\templates\Screenshot 2026-07-21 202716 - Copy.png
 D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto crop print\image adjust\bin\Debug\net8.0-windows\ImageAdjust.exe
 D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto crop print\image adjust\bin\Debug\net8.0-windows\ImageAdjust.deps.json
 D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto crop print\image adjust\bin\Debug\net8.0-windows\ImageAdjust.runtimeconfig.json
@@ -23,16 +35,7 @@ D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto c
 D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto crop print\image adjust\bin\Debug\net8.0-windows\runtimes\win-arm64\native\libSkiaSharp.dll
 D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto crop print\image adjust\bin\Debug\net8.0-windows\runtimes\win-x64\native\libSkiaSharp.dll
 D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto crop print\image adjust\bin\Debug\net8.0-windows\runtimes\win-x86\native\libSkiaSharp.dll
-D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto crop print\image adjust\obj\Debug\net8.0-windows\ImageAdjust.csproj.AssemblyReference.cache
-D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto crop print\image adjust\obj\Debug\net8.0-windows\Styles\Styles.baml
 D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto crop print\image adjust\obj\Debug\net8.0-windows\App.baml
-D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto crop print\image adjust\obj\Debug\net8.0-windows\Views\EditWindow.g.cs
-D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto crop print\image adjust\obj\Debug\net8.0-windows\Views\IdCardWindow.g.cs
-D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto crop print\image adjust\obj\Debug\net8.0-windows\Views\MainWindow.g.cs
-D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto crop print\image adjust\obj\Debug\net8.0-windows\App.g.cs
-D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto crop print\image adjust\obj\Debug\net8.0-windows\GeneratedInternalTypeHelper.g.cs
-D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto crop print\image adjust\obj\Debug\net8.0-windows\ImageAdjust_MarkupCompile.cache
-D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto crop print\image adjust\obj\Debug\net8.0-windows\ImageAdjust_MarkupCompile.lref
 D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto crop print\image adjust\obj\Debug\net8.0-windows\Views\EditWindow.baml
 D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto crop print\image adjust\obj\Debug\net8.0-windows\Views\IdCardWindow.baml
 D:\githubprojects\MKTABA TOOLS ALL IN ONE\image adjust lighting - and cin auto crop print\image adjust\obj\Debug\net8.0-windows\Views\MainWindow.baml
