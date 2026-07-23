@@ -262,7 +262,9 @@ namespace ImageAdjust.ViewModels
                 var (front, back) = await Task.Run(() =>
                     _imageService.PrepareCardImages(
                         _originalFront, _originalBack, Settings,
-                        null, null, DisplayWidth, DisplayHeight));
+                        IsCroppingFront ? FrontCrop : null,
+                        IsCroppingBack ? BackCrop : null,
+                        DisplayWidth, DisplayHeight));
 
                 var pdfBytes = await Task.Run(() => _pdfService.GenerateCardPdf(front, back));
 
@@ -294,7 +296,9 @@ namespace ImageAdjust.ViewModels
                 var (front, back) = await Task.Run(() =>
                     _imageService.PrepareCardImages(
                         _originalFront, _originalBack, Settings,
-                        null, null, DisplayWidth, DisplayHeight));
+                        IsCroppingFront ? FrontCrop : null,
+                        IsCroppingBack ? BackCrop : null,
+                        DisplayWidth, DisplayHeight));
 
                 var pdfBytes = await Task.Run(() => _pdfService.GenerateCardPdf(front, back));
 

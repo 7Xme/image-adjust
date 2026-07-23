@@ -53,11 +53,11 @@ namespace ImageAdjust.Views
 
             grid.Children.Add(BuildCardPreview("FrontPreview", "IsCroppingFront", "#00FF88",
                 "\u0627\u0644\u0648\u062c\u0647 \u0627\u0644\u0623\u0645\u0627\u0645\u064a / Face avant (Recto)",
-                "ToggleCropFrontCommand", 0));
+                "AutoCropFrontCommand", 0));
             grid.Children.Add(BuildSeparator(1));
             grid.Children.Add(BuildCardPreview("BackPreview", "IsCroppingBack", "#FF8800",
                 "\u0627\u0644\u0648\u062c\u0647 \u0627\u0644\u062e\u0644\u0641\u064a / Face arri\u00e8re (Verso)",
-                "ToggleCropBackCommand", 2));
+                "AutoCropBackCommand", 2));
 
             return grid;
         }
