@@ -131,13 +131,35 @@ namespace ImageAdjust.Views
             };
 
             bool isDragging = false;
-            Point dragStart = new Point();
+            double dragStartRX = 0, dragStartRY = 0;
+
+            (double left, double top, double w, double h) GetImageBounds()
+            {
+                double m = 16;
+                double aw = Math.Max(1, contentGrid.ActualWidth - 2 * m);
+                double ah = Math.Max(1, contentGrid.ActualHeight - 2 * m);
+                double sw = image.Source?.Width ?? aw;
+                double sh = image.Source?.Height ?? ah;
+                if (sw <= 0 || sh <= 0) return (m, m, aw, ah);
+                double sc = Math.Min(aw / sw, ah / sh);
+                double rw = sw * sc;
+                double rh = sh * sc;
+                return (m + (aw - rw) / 2, m + (ah - rh) / 2, rw, rh);
+            }
 
             mouseOverlay.MouseLeftButtonDown += (s, e) =>
             {
-                if (image.ActualWidth <= 0 || image.ActualHeight <= 0) return;
+                double sw = image.Source?.Width ?? 0;
+                double sh = image.Source?.Height ?? 0;
+                if (sw <= 0 || sh <= 0) return;
+                var b = GetImageBounds();
+                Point pos = e.GetPosition(contentGrid);
+                double rx = (pos.X - b.left) / b.w;
+                double ry = (pos.Y - b.top) / b.h;
+                if (rx < 0 || rx > 1 || ry < 0 || ry > 1) return;
                 isDragging = true;
-                dragStart = e.GetPosition(image);
+                dragStartRX = rx;
+                dragStartRY = ry;
                 selectionBorder.Visibility = Visibility.Visible;
                 mouseOverlay.CaptureMouse();
                 e.Handled = true;
@@ -146,14 +168,17 @@ namespace ImageAdjust.Views
             mouseOverlay.MouseMove += (s, e) =>
             {
                 if (!isDragging) return;
-                Point cur = e.GetPosition(image);
-                double x = Math.Min(dragStart.X, cur.X);
-                double y = Math.Min(dragStart.Y, cur.Y);
-                double w = Math.Abs(cur.X - dragStart.X);
-                double h = Math.Abs(cur.Y - dragStart.Y);
-                selectionBorder.Margin = new Thickness(16 + x, 16 + y, 0, 0);
-                selectionBorder.Width = w;
-                selectionBorder.Height = h;
+                var b = GetImageBounds();
+                Point pos = e.GetPosition(contentGrid);
+                double curRX = Math.Max(0, Math.Min(1, (pos.X - b.left) / b.w));
+                double curRY = Math.Max(0, Math.Min(1, (pos.Y - b.top) / b.h));
+                double rx = Math.Min(dragStartRX, curRX);
+                double ry = Math.Min(dragStartRY, curRY);
+                double rw = Math.Abs(curRX - dragStartRX);
+                double rh = Math.Abs(curRY - dragStartRY);
+                selectionBorder.Margin = new Thickness(b.left + rx * b.w, b.top + ry * b.h, 0, 0);
+                selectionBorder.Width = rw * b.w;
+                selectionBorder.Height = rh * b.h;
                 e.Handled = true;
             };
 
@@ -164,25 +189,26 @@ namespace ImageAdjust.Views
                 mouseOverlay.ReleaseMouseCapture();
                 selectionBorder.Visibility = Visibility.Collapsed;
 
-                Point cur = e.GetPosition(image);
-                double x = Math.Min(dragStart.X, cur.X);
-                double y = Math.Min(dragStart.Y, cur.Y);
-                double w = Math.Abs(cur.X - dragStart.X);
-                double h = Math.Abs(cur.Y - dragStart.Y);
+                var b = GetImageBounds();
+                Point pos = e.GetPosition(contentGrid);
+                double curRX = Math.Max(0, Math.Min(1, (pos.X - b.left) / b.w));
+                double curRY = Math.Max(0, Math.Min(1, (pos.Y - b.top) / b.h));
+                double rx = Math.Min(dragStartRX, curRX);
+                double ry = Math.Min(dragStartRY, curRY);
+                double rw = Math.Abs(curRX - dragStartRX);
+                double rh = Math.Abs(curRY - dragStartRY);
 
-                if (w < 10 || h < 10) return;
+                if (rw * b.w < 10 || rh * b.h < 10) return;
 
-                if (image.ActualWidth > 0 && image.ActualHeight > 0)
-                {
-                    double dx = (x / image.ActualWidth) * ViewModel.DisplayWidth;
-                    double dy = (y / image.ActualHeight) * ViewModel.DisplayHeight;
-                    double dw = (w / image.ActualWidth) * ViewModel.DisplayWidth;
-                    double dh = (h / image.ActualHeight) * ViewModel.DisplayHeight;
-                    if (isFront)
-                        ViewModel.SetManualCropFront(dx, dy, dw, dh);
-                    else
-                        ViewModel.SetManualCropBack(dx, dy, dw, dh);
-                }
+                double dx = rx * ViewModel.DisplayWidth;
+                double dy = ry * ViewModel.DisplayHeight;
+                double dw = rw * ViewModel.DisplayWidth;
+                double dh = rh * ViewModel.DisplayHeight;
+                if (isFront)
+                    ViewModel.SetManualCropFront(dx, dy, dw, dh);
+                else
+                    ViewModel.SetManualCropBack(dx, dy, dw, dh);
+
                 e.Handled = true;
             };
 

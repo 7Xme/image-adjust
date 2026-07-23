@@ -23,6 +23,8 @@ namespace ImageAdjust.ViewModels
         private WriteableBitmap? _writableFront;
         private WriteableBitmap? _writableBack;
         private CancellationTokenSource? _cts;
+        private bool _frontHasCrop;
+        private bool _backHasCrop;
 
         [ObservableProperty]
         private BitmapSource? _frontPreview;
@@ -160,10 +162,10 @@ namespace ImageAdjust.ViewModels
                     token.ThrowIfCancellationRequested();
 
                     // Crop if active, then apply adjustments
-                    using var frontSrc = IsCroppingFront && FrontCrop.Width > 0 && FrontCrop.Height > 0
+                    using var frontSrc = _frontHasCrop && FrontCrop.Width > 0 && FrontCrop.Height > 0
                         ? _imageService.CropRegion(_baseFrontPreview, FrontCrop, DisplayWidth, DisplayHeight)
                         : _baseFrontPreview.Copy();
-                    using var backSrc = IsCroppingBack && BackCrop.Width > 0 && BackCrop.Height > 0
+                    using var backSrc = _backHasCrop && BackCrop.Width > 0 && BackCrop.Height > 0
                         ? _imageService.CropRegion(_baseBackPreview, BackCrop, DisplayWidth, DisplayHeight)
                         : _baseBackPreview.Copy();
 
@@ -209,6 +211,8 @@ namespace ImageAdjust.ViewModels
         [RelayCommand]
         private void ResetCrop()
         {
+            _frontHasCrop = false;
+            _backHasCrop = false;
             IsCroppingFront = false;
             IsCroppingBack = false;
             InitCropRegions();
@@ -224,8 +228,8 @@ namespace ImageAdjust.ViewModels
             float sy = (float)DisplayHeight / _originalFront.Height;
             FrontCrop.Set((int)(rect.Left * sx), (int)(rect.Top * sy),
                           (int)(rect.Width * sx), (int)(rect.Height * sy));
+            _frontHasCrop = true;
             IsCroppingFront = true;
-            IsCroppingBack = false;
             QueuePreviewUpdate();
         }
 
@@ -238,24 +242,24 @@ namespace ImageAdjust.ViewModels
             float sy = (float)DisplayHeight / _originalBack.Height;
             BackCrop.Set((int)(rect.Left * sx), (int)(rect.Top * sy),
                          (int)(rect.Width * sx), (int)(rect.Height * sy));
+            _backHasCrop = true;
             IsCroppingBack = true;
-            IsCroppingFront = false;
             QueuePreviewUpdate();
         }
 
         public void SetManualCropFront(double x, double y, double w, double h)
         {
             FrontCrop.Set(x, y, w, h);
+            _frontHasCrop = true;
             IsCroppingFront = true;
-            IsCroppingBack = false;
             QueuePreviewUpdate();
         }
 
         public void SetManualCropBack(double x, double y, double w, double h)
         {
             BackCrop.Set(x, y, w, h);
+            _backHasCrop = true;
             IsCroppingBack = true;
-            IsCroppingFront = false;
             QueuePreviewUpdate();
         }
 

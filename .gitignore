@@ -4,3 +4,4 @@
 *.exe
 obj/Debug/net8.0-windows/apphost.exe
 /obj/Debug
+/obj
