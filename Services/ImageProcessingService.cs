@@ -130,6 +130,9 @@ namespace ImageAdjust.Services
 
             SKRectI? result;
 
+            result = DetectByEdgePeaks(pixels, w, h, stride);
+            if (result.HasValue) return result.Value;
+
             result = DetectByEdgeDensity(pixels, w, h, stride);
             if (result.HasValue) return result.Value;
 
@@ -181,6 +184,113 @@ namespace ImageAdjust.Services
             for (int i = start; step > 0 ? i <= end : i >= end; i += step)
                 if (profile[i] > threshold) return i;
             return null;
+        }
+
+        private float[] SmoothProfile(float[] data, int kernelSize)
+        {
+            int k = Math.Max(1, kernelSize);
+            float[] smoothed = new float[data.Length];
+            for (int i = 0; i < data.Length; i++)
+            {
+                int start = Math.Max(0, i - k);
+                int end = Math.Min(data.Length - 1, i + k);
+                double sum = 0;
+                for (int j = start; j <= end; j++) sum += data[j];
+                smoothed[i] = (float)(sum / (end - start + 1));
+            }
+            return smoothed;
+        }
+
+        private int? FindStrongestExtremum(float[] data, int start, int end, bool positive)
+        {
+            int best = -1;
+            float bestVal = positive ? float.MinValue : float.MaxValue;
+            for (int i = Math.Max(1, start); i <= Math.Min(end, data.Length - 2); i++)
+            {
+                if (!positive && data[i] < bestVal) { bestVal = data[i]; best = i; }
+                else if (positive && data[i] > bestVal) { bestVal = data[i]; best = i; }
+            }
+            if (best < 0) return null;
+
+            float mean = 0;
+            for (int i = 0; i < data.Length; i++) mean += data[i];
+            mean /= data.Length;
+            float dev = bestVal - mean;
+            if (Math.Abs(dev) < Math.Abs(mean) * 0.05f) return null;
+            return best;
+        }
+
+        private SKRectI? DetectByEdgePeaks(byte[] pixels, int w, int h, int stride)
+        {
+            byte[] gray = new byte[w * h];
+            for (int y = 0; y < h; y++)
+            {
+                int rowSrc = y * stride;
+                int rowDst = y * w;
+                for (int x = 0; x < w; x++)
+                {
+                    int idx = rowSrc + x * 4;
+                    gray[rowDst + x] = (byte)((pixels[idx] + pixels[idx + 1] + pixels[idx + 2]) / 3);
+                }
+            }
+
+            int[] gx = new int[w * h], gy = new int[w * h];
+            for (int y = 1; y < h - 1; y++)
+            {
+                int row = y * w, up = (y - 1) * w, dn = (y + 1) * w;
+                for (int x = 1; x < w - 1; x++)
+                {
+                    gx[row + x] = gray[row + x + 1] - gray[row + x - 1];
+                    gy[row + x] = gray[dn + x] - gray[up + x];
+                }
+            }
+
+            float[] rowProj = new float[h], colProj = new float[w];
+            for (int y = 1; y < h - 1; y++)
+            {
+                long sum = 0; int row = y * w;
+                for (int x = 1; x < w - 1; x++) sum += gy[row + x];
+                rowProj[y] = sum;
+            }
+            for (int x = 1; x < w - 1; x++)
+            {
+                long sum = 0;
+                for (int y = 1; y < h - 1; y++) sum += gx[y * w + x];
+                colProj[x] = sum;
+            }
+
+            int k = Math.Max(3, Math.Min(w, h) / 60);
+            rowProj = SmoothProfile(rowProj, k);
+            colProj = SmoothProfile(colProj, k);
+
+            int? top = FindStrongestExtremum(rowProj, 0, h / 2, positive: true);
+            int? bottom = FindStrongestExtremum(rowProj, h / 2, h - 1, positive: false);
+            int? left = FindStrongestExtremum(colProj, 0, w / 2, positive: true);
+            int? right = FindStrongestExtremum(colProj, w / 2, w - 1, positive: false);
+
+            if (top == null || bottom == null || left == null || right == null)
+                return null;
+
+            int y1 = top.Value, y2 = bottom.Value;
+            int x1 = left.Value, x2 = right.Value;
+
+            if (y1 >= y2 || x1 >= x2) return null;
+
+            int cardW = x2 - x1 + 1, cardH = y2 - y1 + 1;
+            if (cardW < w * 0.08 || cardH < h * 0.08) return null;
+
+            double ratio = (double)cardW / cardH;
+            double target = 856.0 / 540;
+            double ratioOk = Math.Min(ratio, target) / Math.Max(ratio, target);
+            if (ratioOk < 0.5) return null;
+
+            int pad = Math.Max(4, Math.Min(w, h) / 100);
+            x1 = Math.Max(0, x1 - pad);
+            y1 = Math.Max(0, y1 - pad);
+            x2 = Math.Min(w - 1, x2 + pad);
+            y2 = Math.Min(h - 1, y2 + pad);
+
+            return new SKRectI(x1, y1, x2 + 1, y2 + 1);
         }
 
         private SKRectI? DetectByEdgeDensity(byte[] pixels, int w, int h, int stride)
