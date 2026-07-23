@@ -2,6 +2,7 @@ using ImageAdjust.ViewModels;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
+using System.Windows.Input;
 using System.Windows.Media;
 
 namespace ImageAdjust.Views
@@ -64,6 +65,7 @@ namespace ImageAdjust.Views
 
         private Border BuildCardPreview(string imageBinding, string cropBinding, string cropColor, string title, string toggleCommand, int column)
         {
+            bool isFront = imageBinding == "FrontPreview";
             var border = new Border { Margin = new Thickness(12) };
             Grid.SetColumn(border, column);
 
@@ -110,6 +112,81 @@ namespace ImageAdjust.Views
             cropBorder.SetBinding(Border.VisibilityProperty, new Binding(cropBinding) { Converter = Application.Current.FindResource("BoolToVis") as IValueConverter });
             contentGrid.Children.Add(cropBorder);
 
+            var selectionBorder = new Border
+            {
+                BorderBrush = (SolidColorBrush)new BrushConverter().ConvertFromString(cropColor)!,
+                BorderThickness = new Thickness(2),
+                Background = new SolidColorBrush(Color.FromArgb(40, 0xFF, 0xFF, 0xFF)),
+                Visibility = Visibility.Collapsed,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                VerticalAlignment = VerticalAlignment.Top
+            };
+            contentGrid.Children.Add(selectionBorder);
+
+            var mouseOverlay = new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb(1, 0, 0, 0)),
+                Margin = new Thickness(16),
+                Cursor = Cursors.Cross
+            };
+
+            bool isDragging = false;
+            Point dragStart = new Point();
+
+            mouseOverlay.MouseLeftButtonDown += (s, e) =>
+            {
+                if (image.ActualWidth <= 0 || image.ActualHeight <= 0) return;
+                isDragging = true;
+                dragStart = e.GetPosition(image);
+                selectionBorder.Visibility = Visibility.Visible;
+                mouseOverlay.CaptureMouse();
+                e.Handled = true;
+            };
+
+            mouseOverlay.MouseMove += (s, e) =>
+            {
+                if (!isDragging) return;
+                Point cur = e.GetPosition(image);
+                double x = Math.Min(dragStart.X, cur.X);
+                double y = Math.Min(dragStart.Y, cur.Y);
+                double w = Math.Abs(cur.X - dragStart.X);
+                double h = Math.Abs(cur.Y - dragStart.Y);
+                selectionBorder.Margin = new Thickness(16 + x, 16 + y, 0, 0);
+                selectionBorder.Width = w;
+                selectionBorder.Height = h;
+                e.Handled = true;
+            };
+
+            mouseOverlay.MouseLeftButtonUp += (s, e) =>
+            {
+                if (!isDragging) { mouseOverlay.ReleaseMouseCapture(); return; }
+                isDragging = false;
+                mouseOverlay.ReleaseMouseCapture();
+                selectionBorder.Visibility = Visibility.Collapsed;
+
+                Point cur = e.GetPosition(image);
+                double x = Math.Min(dragStart.X, cur.X);
+                double y = Math.Min(dragStart.Y, cur.Y);
+                double w = Math.Abs(cur.X - dragStart.X);
+                double h = Math.Abs(cur.Y - dragStart.Y);
+
+                if (w < 10 || h < 10) return;
+
+                if (image.ActualWidth > 0 && image.ActualHeight > 0)
+                {
+                    double dx = (x / image.ActualWidth) * ViewModel.DisplayWidth;
+                    double dy = (y / image.ActualHeight) * ViewModel.DisplayHeight;
+                    double dw = (w / image.ActualWidth) * ViewModel.DisplayWidth;
+                    double dh = (h / image.ActualHeight) * ViewModel.DisplayHeight;
+                    if (isFront)
+                        ViewModel.SetManualCropFront(dx, dy, dw, dh);
+                    else
+                        ViewModel.SetManualCropBack(dx, dy, dw, dh);
+                }
+                e.Handled = true;
+            };
+
+            contentGrid.Children.Add(mouseOverlay);
             contentBorder.Child = contentGrid;
             Grid.SetRow(contentBorder, 1);
             grid.Children.Add(contentBorder);

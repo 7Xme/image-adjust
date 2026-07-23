@@ -243,6 +243,22 @@ namespace ImageAdjust.ViewModels
             QueuePreviewUpdate();
         }
 
+        public void SetManualCropFront(double x, double y, double w, double h)
+        {
+            FrontCrop.Set(x, y, w, h);
+            IsCroppingFront = true;
+            IsCroppingBack = false;
+            QueuePreviewUpdate();
+        }
+
+        public void SetManualCropBack(double x, double y, double w, double h)
+        {
+            BackCrop.Set(x, y, w, h);
+            IsCroppingBack = true;
+            IsCroppingFront = false;
+            QueuePreviewUpdate();
+        }
+
         [RelayCommand]
         private void ToggleCropFront()
         {
