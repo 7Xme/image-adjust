@@ -123,47 +123,263 @@ namespace ImageAdjust.Services
 
         public SKRectI AutoTrimBounds(SKBitmap bitmap)
         {
-            var bg = bitmap.GetPixel(0, 0);
-            int bgR = bg.Red, bgG = bg.Green, bgB = bg.Blue;
-            int threshold = 40;
+            int w = bitmap.Width, h = bitmap.Height;
+            int stride = w * 4;
+            byte[] pixels = new byte[h * stride];
+            Marshal.Copy(bitmap.GetPixels(), pixels, 0, pixels.Length);
 
-            int x1 = 0, y1 = 0, x2 = bitmap.Width - 1, y2 = bitmap.Height - 1;
+            var result = DetectByEdgeProjection(pixels, w, h, stride);
+            if (result.HasValue) return result.Value;
 
-            for (int x = 0; x < bitmap.Width; x++)
-                for (int y = 0; y < bitmap.Height; y++)
+            result = DetectRedBorder(pixels, w, h, stride);
+            if (result.HasValue) return result.Value;
+
+            return TrimBackgroundSimple(pixels, w, h, stride);
+        }
+
+        private SKRectI? DetectByEdgeProjection(byte[] pixels, int w, int h, int stride)
+        {
+            byte[] gray = new byte[w * h];
+
+            for (int y = 0; y < h; y++)
+            {
+                int rowSrc = y * stride;
+                int rowDst = y * w;
+                for (int x = 0; x < w; x++)
                 {
-                    var p = bitmap.GetPixel(x, y);
-                    if (Math.Abs(p.Red - bgR) > threshold || Math.Abs(p.Green - bgG) > threshold || Math.Abs(p.Blue - bgB) > threshold)
-                    { x1 = x; goto topDone; }
+                    int idx = rowSrc + x * 4;
+                    gray[rowDst + x] = (byte)((pixels[idx] + pixels[idx + 1] + pixels[idx + 2]) / 3);
                 }
-            topDone:;
+            }
 
-            for (int x = bitmap.Width - 1; x >= 0; x--)
-                for (int y = 0; y < bitmap.Height; y++)
+            float[] rowScores = new float[h];
+            for (int y = 0; y < h; y++)
+            {
+                int rowStart = y * w;
+                float sum = 0;
+                byte prev = gray[rowStart];
+                for (int x = 1; x < w; x++)
                 {
-                    var p = bitmap.GetPixel(x, y);
-                    if (Math.Abs(p.Red - bgR) > threshold || Math.Abs(p.Green - bgG) > threshold || Math.Abs(p.Blue - bgB) > threshold)
-                    { x2 = x; goto rightDone; }
+                    byte cur = gray[rowStart + x];
+                    sum += Math.Abs(cur - prev);
+                    prev = cur;
                 }
-            rightDone:;
+                rowScores[y] = sum / w;
+            }
 
-            for (int y = 0; y < bitmap.Height; y++)
-                for (int x = x1; x <= x2; x++)
+            float[] colScores = new float[w];
+            for (int x = 0; x < w; x++)
+            {
+                float sum = 0;
+                byte prev = gray[x];
+                for (int y = 1; y < h; y++)
                 {
-                    var p = bitmap.GetPixel(x, y);
-                    if (Math.Abs(p.Red - bgR) > threshold || Math.Abs(p.Green - bgG) > threshold || Math.Abs(p.Blue - bgB) > threshold)
-                    { y1 = y; goto topEdgeDone; }
+                    byte cur = gray[y * w + x];
+                    sum += Math.Abs(cur - prev);
+                    prev = cur;
                 }
-            topEdgeDone:;
+                colScores[x] = sum / h;
+            }
 
-            for (int y = bitmap.Height - 1; y >= 0; y--)
-                for (int x = x1; x <= x2; x++)
+            float rowMean = 0;
+            foreach (var s in rowScores) rowMean += s;
+            rowMean /= h;
+            float rowVar = 0;
+            foreach (var s in rowScores) rowVar += (s - rowMean) * (s - rowMean);
+            float rowStd = (float)Math.Sqrt(rowVar / h);
+
+            float colMean = 0;
+            foreach (var s in colScores) colMean += s;
+            colMean /= w;
+            float colVar = 0;
+            foreach (var s in colScores) colVar += (s - colMean) * (s - colMean);
+            float colStd = (float)Math.Sqrt(colVar / w);
+
+            float rowThreshold = rowMean + rowStd * 1.5f;
+            float colThreshold = colMean + colStd * 1.5f;
+
+            int y1 = 0;
+            for (y1 = 0; y1 < h * 0.3; y1++)
+                if (rowScores[y1] > rowThreshold) break;
+            if (y1 >= h * 0.3) y1 = 0;
+
+            int y2 = h - 1;
+            for (y2 = h - 1; y2 > h * 0.7; y2--)
+                if (rowScores[y2] > rowThreshold) break;
+            if (y2 <= h * 0.7) y2 = h - 1;
+
+            int x1 = 0;
+            for (x1 = 0; x1 < w * 0.3; x1++)
+                if (colScores[x1] > colThreshold) break;
+            if (x1 >= w * 0.3) x1 = 0;
+
+            int x2 = w - 1;
+            for (x2 = w - 1; x2 > w * 0.7; x2--)
+                if (colScores[x2] > colThreshold) break;
+            if (x2 <= w * 0.7) x2 = w - 1;
+
+            if (y1 >= y2 || x1 >= x2) return null;
+
+            int pad = Math.Max(4, Math.Min(w, h) / 100);
+            x1 = Math.Max(0, x1 - pad);
+            y1 = Math.Max(0, y1 - pad);
+            x2 = Math.Min(w - 1, x2 + pad);
+            y2 = Math.Min(h - 1, y2 + pad);
+
+            int rw = x2 - x1 + 1;
+            int rh = y2 - y1 + 1;
+            if (rw < w * 0.08 || rh < h * 0.08) return null;
+
+            return new SKRectI(x1, y1, x2 + 1, y2 + 1);
+        }
+
+        private SKRectI? DetectRedBorder(byte[] pixels, int w, int h, int stride)
+        {
+            int xMin = w, yMin = h, xMax = 0, yMax = 0, count = 0;
+
+            for (int y = 0; y < h; y++)
+            {
+                int rowStart = y * stride;
+                for (int x = 0; x < w; x++)
                 {
-                    var p = bitmap.GetPixel(x, y);
-                    if (Math.Abs(p.Red - bgR) > threshold || Math.Abs(p.Green - bgG) > threshold || Math.Abs(p.Blue - bgB) > threshold)
-                    { y2 = y; goto bottomDone; }
+                    int idx = rowStart + x * 4;
+                    int b = pixels[idx];
+                    int g = pixels[idx + 1];
+                    int r = pixels[idx + 2];
+
+                    if (r > g + 25 && r > b + 25 && r > 80)
+                    {
+                        count++;
+                        if (x < xMin) xMin = x;
+                        if (y < yMin) yMin = y;
+                        if (x > xMax) xMax = x;
+                        if (y > yMax) yMax = y;
+                    }
                 }
-            bottomDone:;
+            }
+
+            if (count < w * h / 200) return null;
+
+            int pad = Math.Max(5, Math.Min(w, h) / 50);
+            xMin = Math.Max(0, xMin - pad);
+            yMin = Math.Max(0, yMin - pad);
+            xMax = Math.Min(w - 1, xMax + pad);
+            yMax = Math.Min(h - 1, yMax + pad);
+
+            return new SKRectI(xMin, yMin, xMax + 1, yMax + 1);
+        }
+
+        private SKRectI TrimBackgroundSimple(byte[] pixels, int w, int h, int stride)
+        {
+            int sampleSize = Math.Max(4, Math.Min(w, h) / 40);
+            long sumR = 0, sumG = 0, sumB = 0;
+            int total = 0;
+
+            void SampleCorner(int startX, int startY)
+            {
+                int limitX = Math.Min(startX + sampleSize, w);
+                int limitY = Math.Min(startY + sampleSize, h);
+                for (int dy = startY; dy < limitY; dy++)
+                    for (int dx = startX; dx < limitX; dx++)
+                    {
+                        int idx = dy * stride + dx * 4;
+                        sumB += pixels[idx];
+                        sumG += pixels[idx + 1];
+                        sumR += pixels[idx + 2];
+                        total++;
+                    }
+            }
+
+            SampleCorner(0, 0);
+            SampleCorner(Math.Max(0, w - sampleSize), 0);
+            SampleCorner(0, Math.Max(0, h - sampleSize));
+            SampleCorner(Math.Max(0, w - sampleSize), Math.Max(0, h - sampleSize));
+
+            int avgR = (int)(sumR / Math.Max(1, total));
+            int avgG = (int)(sumG / Math.Max(1, total));
+            int avgB = (int)(sumB / Math.Max(1, total));
+
+            int contrastSum = 0, contrastCount = 0;
+            for (int y = 0; y < h; y += 4)
+            {
+                int rowStart = y * stride;
+                for (int x = 0; x < w - 1; x += 4)
+                {
+                    int idx = rowStart + x * 4;
+                    int idx2 = rowStart + (x + 1) * 4;
+                    contrastSum += Math.Abs(pixels[idx] - pixels[idx2]);
+                    contrastSum += Math.Abs(pixels[idx + 1] - pixels[idx2 + 1]);
+                    contrastSum += Math.Abs(pixels[idx + 2] - pixels[idx2 + 2]);
+                    contrastCount++;
+                }
+            }
+            int threshold = Math.Max(30, contrastCount > 0 ? contrastSum / contrastCount : 10);
+
+            int x1 = 0, y1 = 0, x2 = w - 1, y2 = h - 1;
+            bool found = false;
+
+            for (y1 = 0; y1 < h; y1++)
+            {
+                int rowStart = y1 * stride;
+                for (int x = 3; x < w - 3; x++)
+                {
+                    int idx = rowStart + x * 4;
+                    if (Math.Abs(pixels[idx] - avgB) > threshold ||
+                        Math.Abs(pixels[idx + 1] - avgG) > threshold ||
+                        Math.Abs(pixels[idx + 2] - avgR) > threshold)
+                    { found = true; break; }
+                }
+                if (found) break;
+            }
+
+            found = false;
+            for (y2 = h - 1; y2 >= 0; y2--)
+            {
+                int rowStart = y2 * stride;
+                for (int x = 3; x < w - 3; x++)
+                {
+                    int idx = rowStart + x * 4;
+                    if (Math.Abs(pixels[idx] - avgB) > threshold ||
+                        Math.Abs(pixels[idx + 1] - avgG) > threshold ||
+                        Math.Abs(pixels[idx + 2] - avgR) > threshold)
+                    { found = true; break; }
+                }
+                if (found) break;
+            }
+
+            found = false;
+            for (x1 = 0; x1 < w; x1++)
+            {
+                for (int y = y1; y <= y2; y++)
+                {
+                    int idx = y * stride + x1 * 4;
+                    if (Math.Abs(pixels[idx] - avgB) > threshold ||
+                        Math.Abs(pixels[idx + 1] - avgG) > threshold ||
+                        Math.Abs(pixels[idx + 2] - avgR) > threshold)
+                    { found = true; break; }
+                }
+                if (found) break;
+            }
+
+            found = false;
+            for (x2 = w - 1; x2 >= 0; x2--)
+            {
+                for (int y = y1; y <= y2; y++)
+                {
+                    int idx = y * stride + x2 * 4;
+                    if (Math.Abs(pixels[idx] - avgB) > threshold ||
+                        Math.Abs(pixels[idx + 1] - avgG) > threshold ||
+                        Math.Abs(pixels[idx + 2] - avgR) > threshold)
+                    { found = true; break; }
+                }
+                if (found) break;
+            }
+
+            int pad = Math.Max(2, Math.Min(w, h) / 200);
+            x1 = Math.Max(0, x1 - pad);
+            y1 = Math.Max(0, y1 - pad);
+            x2 = Math.Min(w - 1, x2 + pad);
+            y2 = Math.Min(h - 1, y2 + pad);
 
             return new SKRectI(x1, y1, x2 + 1, y2 + 1);
         }
