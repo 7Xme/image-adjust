@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ImageAdjust")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+d0557fe8d0ed8418f34aa4c6bc5d36b3fbb7ded6")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+d4c78440b676bfa1a559f772a425e50578b3fc68")]
 [assembly: System.Reflection.AssemblyProductAttribute("ImageAdjust")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ImageAdjust")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
