@@ -128,16 +128,59 @@ namespace ImageAdjust.Services
             byte[] pixels = new byte[h * stride];
             Marshal.Copy(bitmap.GetPixels(), pixels, 0, pixels.Length);
 
-            var result = DetectByEdgeDensity(pixels, w, h, stride);
+            SKRectI? result;
+
+            result = DetectByEdgeDensity(pixels, w, h, stride);
             if (result.HasValue) return result.Value;
 
-            result = DetectRedBorderRing(pixels, w, h, stride, profile);
+            result = DetectByDominantColor(pixels, w, h, stride);
             if (result.HasValue) return result.Value;
 
-            result = DetectByCombined(pixels, w, h, stride);
+            result = DetectByContentScore(pixels, w, h, stride);
             if (result.HasValue) return result.Value;
 
             return TrimBackgroundSimple(pixels, w, h, stride);
+        }
+
+        private float[] ComputeRowDensity(int[] edgeMag, int w, int h, float threshold)
+        {
+            float[] d = new float[h];
+            for (int y = 0; y < h; y++)
+            {
+                int start = y * w;
+                int count = 0;
+                for (int x = 0; x < w; x++)
+                    if (edgeMag[start + x] > threshold) count++;
+                d[y] = (float)count / w;
+            }
+            return d;
+        }
+
+        private float[] ComputeColDensity(int[] edgeMag, int w, int h, float threshold)
+        {
+            float[] d = new float[w];
+            for (int x = 0; x < w; x++)
+            {
+                int count = 0;
+                for (int y = 0; y < h; y++)
+                    if (edgeMag[y * w + x] > threshold) count++;
+                d[x] = (float)count / h;
+            }
+            return d;
+        }
+
+        private float PercentileThreshold(float[] data, double pct)
+        {
+            float[] s = (float[])data.Clone();
+            Array.Sort(s);
+            return s[(int)(s.Length * Math.Min(pct, 0.999))];
+        }
+
+        private int? ScanEdge(float[] profile, int start, int end, int step, float threshold)
+        {
+            for (int i = start; step > 0 ? i <= end : i >= end; i += step)
+                if (profile[i] > threshold) return i;
+            return null;
         }
 
         private SKRectI? DetectByEdgeDensity(byte[] pixels, int w, int h, int stride)
@@ -173,53 +216,20 @@ namespace ImageAdjust.Services
 
             if (maxMag == 0) return null;
 
-            float edgeThresh = maxMag * 0.12f;
+            float edgeThresh = maxMag * 0.10f;
+            float[] rowDensity = ComputeRowDensity(edgeMag, w, h, edgeThresh);
+            float[] colDensity = ComputeColDensity(edgeMag, w, h, edgeThresh);
 
-            float[] rowDensity = new float[h];
-            float[] colDensity = new float[w];
-            for (int y = 0; y < h; y++)
-            {
-                int rowStart = y * w;
-                int count = 0;
-                for (int x = 0; x < w; x++)
-                    if (edgeMag[rowStart + x] > edgeThresh) count++;
-                rowDensity[y] = (float)count / w;
-            }
-            for (int x = 0; x < w; x++)
-            {
-                int count = 0;
-                for (int y = 0; y < h; y++)
-                    if (edgeMag[y * w + x] > edgeThresh) count++;
-                colDensity[x] = (float)count / h;
-            }
+            float row85 = PercentileThreshold(rowDensity, 0.85);
+            float rowThresh = Math.Max(0.02f, row85);
 
-            float[] sortedR = (float[])rowDensity.Clone();
-            Array.Sort(sortedR);
-            float rowBase = sortedR[(int)(h * 0.35)];
-            float rowThresh = Math.Max(0.015f, rowBase + 0.02f);
+            float col85 = PercentileThreshold(colDensity, 0.85);
+            float colThresh = Math.Max(0.02f, col85);
 
-            float[] sortedC = (float[])colDensity.Clone();
-            Array.Sort(sortedC);
-            float colBase = sortedC[(int)(w * 0.35)];
-            float colThresh = Math.Max(0.015f, colBase + 0.02f);
-
-            int y1 = 0, y2 = h - 1, x1 = 0, x2 = w - 1;
-
-            for (y1 = 0; y1 < h * 0.45; y1++)
-                if (rowDensity[y1] > rowThresh) break;
-            if (y1 >= h * 0.45) y1 = 0;
-
-            for (y2 = h - 1; y2 > h * 0.55; y2--)
-                if (rowDensity[y2] > rowThresh) break;
-            if (y2 <= h * 0.55) y2 = h - 1;
-
-            for (x1 = 0; x1 < w * 0.45; x1++)
-                if (colDensity[x1] > colThresh) break;
-            if (x1 >= w * 0.45) x1 = 0;
-
-            for (x2 = w - 1; x2 > w * 0.55; x2--)
-                if (colDensity[x2] > colThresh) break;
-            if (x2 <= w * 0.55) x2 = w - 1;
+            int y1 = ScanEdge(rowDensity, 0, (int)(h * 0.45), 1, rowThresh) ?? 0;
+            int y2 = ScanEdge(rowDensity, h - 1, (int)(h * 0.55), -1, rowThresh) ?? (h - 1);
+            int x1 = ScanEdge(colDensity, 0, (int)(w * 0.45), 1, colThresh) ?? 0;
+            int x2 = ScanEdge(colDensity, w - 1, (int)(w * 0.55), -1, colThresh) ?? (w - 1);
 
             if (y1 >= y2 || x1 >= x2) return null;
 
@@ -236,85 +246,101 @@ namespace ImageAdjust.Services
             return new SKRectI(x1, y1, x2 + 1, y2 + 1);
         }
 
-        private SKRectI? DetectRedBorderRing(byte[] pixels, int w, int h, int stride, CardTemplateProfile? profile = null)
+        private SKRectI? DetectByDominantColor(byte[] pixels, int w, int h, int stride)
         {
-            double redThresh = profile?.MinRedness ?? 28;
-            double intThresh = profile?.MinRedIntensity ?? 55;
+            int step = Math.Max(8, Math.Min(w, h) / 60);
+            const int B = 8;
+            int[,,] buckets = new int[B, B, B];
+            int total = 0;
 
-            int xMin = w, yMin = h, xMax = 0, yMax = 0, totalRed = 0;
+            for (int y = 0; y < h; y += step)
+            {
+                int rowStart = y * stride;
+                for (int x = 0; x < w; x += step)
+                {
+                    int idx = rowStart + x * 4;
+                    int r = pixels[idx + 2] * B / 256;
+                    int g = pixels[idx + 1] * B / 256;
+                    int bb = pixels[idx] * B / 256;
+                    buckets[r, g, bb]++;
+                    total++;
+                }
+            }
+
+            int bestR = 0, bestG = 0, bestB = 0, bestCount = 0;
+            for (int br = 0; br < B; br++)
+                for (int bg = 0; bg < B; bg++)
+                    for (int bb = 0; bb < B; bb++)
+                    {
+                        int cnt = buckets[br, bg, bb];
+                        if (cnt <= bestCount) continue;
+                        int r = (br + 1) * 256 / B - 1;
+                        int g = (bg + 1) * 256 / B - 1;
+                        int b = (bb + 1) * 256 / B - 1;
+                        int avg = (r + g + b) / 3;
+                        int range = Math.Max(r, Math.Max(g, b)) - Math.Min(r, Math.Min(g, b));
+                        if (avg < 50 || avg > 235 || range > 90) continue;
+                        bestCount = cnt;
+                        bestR = r; bestG = g; bestB = b;
+                    }
+
+            if (bestCount < total * 0.02) return null;
+
+            int maxDist = 45;
+            float[] rowScore = new float[h];
+            float[] colScore = new float[w];
 
             for (int y = 0; y < h; y++)
             {
                 int rowStart = y * stride;
+                int match = 0;
                 for (int x = 0; x < w; x++)
                 {
                     int idx = rowStart + x * 4;
-                    int b = pixels[idx];
-                    int g = pixels[idx + 1];
-                    int r = pixels[idx + 2];
-
-                    int maxOther = Math.Max(g, b);
-                    int redness = r - maxOther;
-
-                    if (redness > redThresh && r > intThresh)
-                    {
-                        totalRed++;
-                        if (x < xMin) xMin = x;
-                        if (y < yMin) yMin = y;
-                        if (x > xMax) xMax = x;
-                        if (y > yMax) yMax = y;
-                    }
+                    int dr = Math.Abs(pixels[idx + 2] - bestR);
+                    int dg = Math.Abs(pixels[idx + 1] - bestG);
+                    int db = Math.Abs(pixels[idx] - bestB);
+                    if (dr + dg + db < maxDist) match++;
                 }
+                rowScore[y] = (float)match / w;
             }
-
-            if (totalRed < w * h / 500) return null;
-
-            int bw = xMax - xMin;
-            int bh = yMax - yMin;
-            if (bw < 10 || bh < 10) return null;
-
-            int marginW = Math.Max(2, bw / 10);
-            int marginH = Math.Max(2, bh / 10);
-            int edgeRed = 0, interiorRed = 0;
-
-            for (int y = Math.Max(0, yMin); y <= Math.Min(h - 1, yMax); y++)
+            for (int x = 0; x < w; x++)
             {
-                for (int x = Math.Max(0, xMin); x <= Math.Min(w - 1, xMax); x++)
+                int match = 0;
+                for (int y = 0; y < h; y++)
                 {
-                    bool onBorder = y < yMin + marginH || y > yMax - marginH ||
-                                    x < xMin + marginW || x > xMax - marginW;
-
                     int idx = y * stride + x * 4;
-                    int r = pixels[idx + 2];
-                    int g = pixels[idx + 1];
-                    int b = pixels[idx];
-                    bool isRed = (r - Math.Max(g, b)) > redThresh && r > intThresh;
-
-                    if (isRed)
-                    {
-                        if (onBorder) edgeRed++;
-                        else interiorRed++;
-                    }
+                    int dr = Math.Abs(pixels[idx + 2] - bestR);
+                    int dg = Math.Abs(pixels[idx + 1] - bestG);
+                    int db = Math.Abs(pixels[idx] - bestB);
+                    if (dr + dg + db < maxDist) match++;
                 }
+                colScore[x] = (float)match / h;
             }
 
-            if (edgeRed < totalRed * 0.08) return null;
+            float r85 = PercentileThreshold(rowScore, 0.85);
+            float rowThresh = Math.Max(0.05f, r85);
+            float c85 = PercentileThreshold(colScore, 0.85);
+            float colThresh = Math.Max(0.05f, c85);
 
-            int pad = Math.Max(5, Math.Min(w, h) / 50);
-            xMin = Math.Max(0, xMin - pad);
-            yMin = Math.Max(0, yMin - pad);
-            xMax = Math.Min(w - 1, xMax + pad);
-            yMax = Math.Min(h - 1, yMax + pad);
+            int y1 = ScanEdge(rowScore, 0, (int)(h * 0.4), 1, rowThresh) ?? 0;
+            int y2 = ScanEdge(rowScore, h - 1, (int)(h * 0.6), -1, rowThresh) ?? (h - 1);
+            int x1 = ScanEdge(colScore, 0, (int)(w * 0.4), 1, colThresh) ?? 0;
+            int x2 = ScanEdge(colScore, w - 1, (int)(w * 0.6), -1, colThresh) ?? (w - 1);
 
-            return new SKRectI(xMin, yMin, xMax + 1, yMax + 1);
+            if (y1 >= y2 || x1 >= x2) return null;
+
+            int rw = x2 - x1 + 1, rh = y2 - y1 + 1;
+            if (rw < w * 0.08 || rh < h * 0.08) return null;
+
+            int pad = Math.Max(4, Math.Min(w, h) / 80);
+            return new SKRectI(Math.Max(0, x1 - pad), Math.Max(0, y1 - pad),
+                               Math.Min(w, x2 + pad + 1), Math.Min(h, y2 + pad + 1));
         }
 
-        private SKRectI? DetectByCombined(byte[] pixels, int w, int h, int stride)
+        private SKRectI? DetectByContentScore(byte[] pixels, int w, int h, int stride)
         {
             byte[] gray = new byte[w * h];
-            int[] edgeMag = new int[w * h];
-            int maxMag = 0;
-
             for (int y = 0; y < h; y++)
             {
                 int rowSrc = y * stride;
@@ -322,13 +348,12 @@ namespace ImageAdjust.Services
                 for (int x = 0; x < w; x++)
                 {
                     int idx = rowSrc + x * 4;
-                    int b = pixels[idx];
-                    int g = pixels[idx + 1];
-                    int r = pixels[idx + 2];
-                    gray[rowDst + x] = (byte)((r + g + b) / 3);
+                    gray[rowDst + x] = (byte)((pixels[idx] + pixels[idx + 1] + pixels[idx + 2]) / 3);
                 }
             }
 
+            int[] edgeMag = new int[w * h];
+            int maxMag = 0;
             for (int y = 1; y < h - 1; y++)
             {
                 int row = y * w;
@@ -338,59 +363,34 @@ namespace ImageAdjust.Services
                 {
                     int gx = Math.Abs(gray[row + x + 1] - gray[row + x - 1]);
                     int gy = Math.Abs(gray[dn + x] - gray[up + x]);
-                    edgeMag[row + x] = gx + gy;
-                    if (edgeMag[row + x] > maxMag) maxMag = edgeMag[row + x];
+                    int mag = gx + gy;
+                    edgeMag[row + x] = mag;
+                    if (mag > maxMag) maxMag = mag;
                 }
             }
 
             if (maxMag == 0) return null;
 
-            float magThresh = maxMag * 0.10f;
+            float edgeThresh = maxMag * 0.10f;
+            float[] rowDensity = ComputeRowDensity(edgeMag, w, h, edgeThresh);
+            float[] colDensity = ComputeColDensity(edgeMag, w, h, edgeThresh);
 
-            int[] score = new int[w * h];
-            for (int i = 0; i < w * h; i++)
-                score[i] = edgeMag[i] > magThresh ? 1 : 0;
-
-            float[] rowScore = new float[h];
-            float[] colScore = new float[w];
-            for (int y = 0; y < h; y++)
-            {
-                int s = 0;
-                for (int x = 0; x < w; x++) s += score[y * w + x];
-                rowScore[y] = (float)s / w;
-            }
-            for (int x = 0; x < w; x++)
-            {
-                int s = 0;
-                for (int y = 0; y < h; y++) s += score[y * w + x];
-                colScore[x] = (float)s / h;
-            }
-
-            float rThresh = 0.02f, cThresh = 0.02f;
-            int maxShift = Math.Min(w, h) / 10;
+            float rThresh = PercentileThreshold(rowDensity, 0.70);
+            float cThresh = PercentileThreshold(colDensity, 0.70);
+            rThresh = Math.Max(0.02f, rThresh);
+            cThresh = Math.Max(0.02f, cThresh);
 
             int bestY1 = 0, bestY2 = h - 1, bestX1 = 0, bestX2 = w - 1;
             double bestScore = -1;
+            int maxShift = Math.Min(w, h) / 10;
+            int steps = Math.Max(5, maxShift / 15);
 
-            for (int shift = 0; shift <= maxShift; shift += Math.Max(1, maxShift / 20))
+            for (int shift = 0; shift <= maxShift; shift += Math.Max(1, steps))
             {
-                int sy1 = 0, sy2 = h - 1, sx1 = 0, sx2 = w - 1;
-
-                for (sy1 = shift; sy1 < h * 0.4; sy1++)
-                    if (rowScore[sy1] > rThresh) break;
-                if (sy1 >= h * 0.4) sy1 = shift;
-
-                for (sy2 = h - 1 - shift; sy2 > h * 0.6; sy2--)
-                    if (rowScore[sy2] > rThresh) break;
-                if (sy2 <= h * 0.6) sy2 = h - 1 - shift;
-
-                for (sx1 = shift; sx1 < w * 0.4; sx1++)
-                    if (colScore[sx1] > cThresh) break;
-                if (sx1 >= w * 0.4) sx1 = shift;
-
-                for (sx2 = w - 1 - shift; sx2 > w * 0.6; sx2--)
-                    if (colScore[sx2] > cThresh) break;
-                if (sx2 <= w * 0.6) sx2 = w - 1 - shift;
+                int sy1 = ScanEdge(rowDensity, shift, (int)(h * 0.45), 1, rThresh) ?? shift;
+                int sy2 = ScanEdge(rowDensity, h - 1 - shift, (int)(h * 0.55), -1, rThresh) ?? (h - 1 - shift);
+                int sx1 = ScanEdge(colDensity, shift, (int)(w * 0.45), 1, cThresh) ?? shift;
+                int sx2 = ScanEdge(colDensity, w - 1 - shift, (int)(w * 0.55), -1, cThresh) ?? (w - 1 - shift);
 
                 if (sy1 >= sy2 || sx1 >= sx2) continue;
 
@@ -399,18 +399,17 @@ namespace ImageAdjust.Services
                 for (int y = sy1; y <= sy2; y++)
                     for (int x = sx1; x <= sx2; x++)
                     {
-                        avgScore += score[y * w + x];
+                        avgScore += edgeMag[y * w + x];
                         count++;
                     }
                 avgScore /= count;
 
                 int rw = sx2 - sx1 + 1, rh = sy2 - sy1 + 1;
                 double areaRatio = (double)(rw * rh) / (w * h);
-                double combined = avgScore * areaRatio;
-
-                if (combined > bestScore)
+                double score = avgScore * areaRatio;
+                if (score > bestScore)
                 {
-                    bestScore = combined;
+                    bestScore = score;
                     bestY1 = sy1; bestY2 = sy2;
                     bestX1 = sx1; bestX2 = sx2;
                 }
@@ -418,15 +417,14 @@ namespace ImageAdjust.Services
 
             if (bestScore < 0) return null;
 
-            int pw = bestX2 - bestX1 + 1;
-            int ph = bestY2 - bestY1 + 1;
+            int pw = bestX2 - bestX1 + 1, ph = bestY2 - bestY1 + 1;
             if (pw < w * 0.06 || ph < h * 0.06) return null;
 
-            int pad2 = Math.Max(3, Math.Min(w, h) / 100);
-            bestX1 = Math.Max(0, bestX1 - pad2);
-            bestY1 = Math.Max(0, bestY1 - pad2);
-            bestX2 = Math.Min(w - 1, bestX2 + pad2);
-            bestY2 = Math.Min(h - 1, bestY2 + pad2);
+            int pad = Math.Max(3, Math.Min(w, h) / 100);
+            bestX1 = Math.Max(0, bestX1 - pad);
+            bestY1 = Math.Max(0, bestY1 - pad);
+            bestX2 = Math.Min(w - 1, bestX2 + pad);
+            bestY2 = Math.Min(h - 1, bestY2 + pad);
 
             return new SKRectI(bestX1, bestY1, bestX2 + 1, bestY2 + 1);
         }
