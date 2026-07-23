@@ -141,8 +141,7 @@ namespace ImageAdjust.ViewModels
 
         private async void QueuePreviewUpdate()
         {
-            if (_baseFrontPreview == null || _baseBackPreview == null ||
-                _writableFront == null || _writableBack == null) return;
+            if (_baseFrontPreview == null || _baseBackPreview == null) return;
 
             _cts?.Cancel();
             _cts?.Dispose();
@@ -156,21 +155,44 @@ namespace ImageAdjust.ViewModels
                 await Task.Delay(80, token);
                 token.ThrowIfCancellationRequested();
 
-                using var frontCopy = _baseFrontPreview.Copy();
-                using var backCopy = _baseBackPreview.Copy();
-                token.ThrowIfCancellationRequested();
-
                 await Task.Run(() =>
                 {
                     token.ThrowIfCancellationRequested();
-                    _imageService.ApplyAdjustmentsInPlace(frontCopy, Settings);
-                    _imageService.ApplyAdjustmentsInPlace(backCopy, Settings);
+
+                    // Crop if active, then apply adjustments
+                    using var frontSrc = IsCroppingFront && FrontCrop.Width > 0 && FrontCrop.Height > 0
+                        ? _imageService.CropRegion(_baseFrontPreview, FrontCrop, DisplayWidth, DisplayHeight)
+                        : _baseFrontPreview.Copy();
+                    using var backSrc = IsCroppingBack && BackCrop.Width > 0 && BackCrop.Height > 0
+                        ? _imageService.CropRegion(_baseBackPreview, BackCrop, DisplayWidth, DisplayHeight)
+                        : _baseBackPreview.Copy();
+
+                    token.ThrowIfCancellationRequested();
+
+                    _imageService.ApplyAdjustmentsInPlace(frontSrc, Settings);
+                    _imageService.ApplyAdjustmentsInPlace(backSrc, Settings);
+
+                    token.ThrowIfCancellationRequested();
+
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        if (_writableFront == null || _writableFront.PixelWidth != frontSrc.Width || _writableFront.PixelHeight != frontSrc.Height)
+                        {
+                            _writableFront = CreateWritable(frontSrc);
+                            FrontPreview = _writableFront;
+                        }
+                        else
+                            UpdateWritable(_writableFront, frontSrc);
+
+                        if (_writableBack == null || _writableBack.PixelWidth != backSrc.Width || _writableBack.PixelHeight != backSrc.Height)
+                        {
+                            _writableBack = CreateWritable(backSrc);
+                            BackPreview = _writableBack;
+                        }
+                        else
+                            UpdateWritable(_writableBack, backSrc);
+                    });
                 }, token);
-
-                token.ThrowIfCancellationRequested();
-
-                UpdateWritable(_writableFront, frontCopy);
-                UpdateWritable(_writableBack, backCopy);
             }
             catch (OperationCanceledException) { }
             finally
@@ -187,8 +209,10 @@ namespace ImageAdjust.ViewModels
         [RelayCommand]
         private void ResetCrop()
         {
+            IsCroppingFront = false;
+            IsCroppingBack = false;
             InitCropRegions();
-            UpdatePreview();
+            QueuePreviewUpdate();
         }
 
         [RelayCommand]
@@ -202,6 +226,7 @@ namespace ImageAdjust.ViewModels
                           (int)(rect.Width * sx), (int)(rect.Height * sy));
             IsCroppingFront = true;
             IsCroppingBack = false;
+            QueuePreviewUpdate();
         }
 
         [RelayCommand]
@@ -215,6 +240,7 @@ namespace ImageAdjust.ViewModels
                          (int)(rect.Width * sx), (int)(rect.Height * sy));
             IsCroppingBack = true;
             IsCroppingFront = false;
+            QueuePreviewUpdate();
         }
 
         [RelayCommand]
