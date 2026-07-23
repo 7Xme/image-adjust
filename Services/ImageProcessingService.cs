@@ -1,6 +1,7 @@
 using ImageAdjust.Models;
 using SkiaSharp;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
@@ -45,17 +46,72 @@ namespace ImageAdjust.Services
 
         public void ApplyAdjustmentsInPlace(SKBitmap bitmap, AdjustmentSettings settings)
         {
-            if (settings.Contrast != 0)
-                ApplyContrast(bitmap, settings.Contrast);
+            int stride = bitmap.Width * 4;
+            int bufferSize = bitmap.Height * stride;
+            byte[] pixels = new byte[bufferSize];
+            Marshal.Copy(bitmap.GetPixels(), pixels, 0, bufferSize);
 
-            if (settings.Saturation != 0)
-                ApplySaturation(bitmap, settings.Saturation);
+            float contrastFactor = (100.0f + settings.Contrast) / 100.0f;
+            contrastFactor *= contrastFactor;
+            float contrastOffset = 128.0f * (1.0f - contrastFactor);
 
-            if (settings.Shadows != 0)
-                ApplyShadows(bitmap, settings.Shadows);
+            float satFactor = (100.0f + settings.Saturation) / 100.0f;
 
-            if (settings.Highlights != 0)
-                ApplyHighlights(bitmap, settings.Highlights);
+            float shadowFactor = settings.Shadows / 100.0f;
+            float highlightFactor = settings.Highlights / 100.0f;
+
+            bool doContrast = settings.Contrast != 0;
+            bool doSaturation = settings.Saturation != 0;
+            bool doShadows = settings.Shadows != 0;
+            bool doHighlights = settings.Highlights != 0;
+
+            for (int i = 0; i < bufferSize; i += 4)
+            {
+                float r = pixels[i + 2];
+                float g = pixels[i + 1];
+                float b = pixels[i];
+
+                if (doContrast)
+                {
+                    r = r * contrastFactor + contrastOffset;
+                    g = g * contrastFactor + contrastOffset;
+                    b = b * contrastFactor + contrastOffset;
+                }
+
+                if (doSaturation)
+                {
+                    float gray = 0.299f * r + 0.587f * g + 0.114f * b;
+                    r = gray + (r - gray) * satFactor;
+                    g = gray + (g - gray) * satFactor;
+                    b = gray + (b - gray) * satFactor;
+                }
+
+                if (doShadows)
+                {
+                    float luminance = 0.299f * r + 0.587f * g + 0.114f * b;
+                    float shadowAmount = Math.Max(0, 1.0f - luminance / 128.0f);
+                    float adjust = shadowFactor * shadowAmount * 128.0f;
+                    r += adjust;
+                    g += adjust;
+                    b += adjust;
+                }
+
+                if (doHighlights)
+                {
+                    float luminance = 0.299f * r + 0.587f * g + 0.114f * b;
+                    float highlightAmount = Math.Max(0, (luminance - 128.0f) / 127.0f);
+                    float adjust = highlightFactor * highlightAmount * 128.0f;
+                    r -= adjust;
+                    g -= adjust;
+                    b -= adjust;
+                }
+
+                pixels[i] = ClampByte((int)b);
+                pixels[i + 1] = ClampByte((int)g);
+                pixels[i + 2] = ClampByte((int)r);
+            }
+
+            Marshal.Copy(pixels, 0, bitmap.GetPixels(), bufferSize);
         }
 
         public SKBitmap ApplyAdjustments(SKBitmap source, AdjustmentSettings settings)
@@ -63,85 +119,6 @@ namespace ImageAdjust.Services
             var result = source.Copy();
             ApplyAdjustmentsInPlace(result, settings);
             return result;
-        }
-
-        private static void ApplyContrast(SKBitmap bitmap, int contrast)
-        {
-            float factor = (100.0f + contrast) / 100.0f;
-            factor *= factor;
-            float offset = 128.0f * (1.0f - factor);
-
-            for (int y = 0; y < bitmap.Height; y++)
-            {
-                for (int x = 0; x < bitmap.Width; x++)
-                {
-                    var pixel = bitmap.GetPixel(x, y);
-                    byte r = ClampByte((int)(pixel.Red * factor + offset));
-                    byte g = ClampByte((int)(pixel.Green * factor + offset));
-                    byte b = ClampByte((int)(pixel.Blue * factor + offset));
-                    bitmap.SetPixel(x, y, new SKColor(r, g, b, pixel.Alpha));
-                }
-            }
-        }
-
-        private static void ApplySaturation(SKBitmap bitmap, int saturation)
-        {
-            float factor = (100.0f + saturation) / 100.0f;
-
-            for (int y = 0; y < bitmap.Height; y++)
-            {
-                for (int x = 0; x < bitmap.Width; x++)
-                {
-                    var pixel = bitmap.GetPixel(x, y);
-                    float gray = 0.299f * pixel.Red + 0.587f * pixel.Green + 0.114f * pixel.Blue;
-                    byte r = ClampByte((int)(gray + (pixel.Red - gray) * factor));
-                    byte g = ClampByte((int)(gray + (pixel.Green - gray) * factor));
-                    byte b = ClampByte((int)(gray + (pixel.Blue - gray) * factor));
-                    bitmap.SetPixel(x, y, new SKColor(r, g, b, pixel.Alpha));
-                }
-            }
-        }
-
-        private static void ApplyShadows(SKBitmap bitmap, int shadows)
-        {
-            float factor = shadows / 100.0f;
-
-            for (int y = 0; y < bitmap.Height; y++)
-            {
-                for (int x = 0; x < bitmap.Width; x++)
-                {
-                    var pixel = bitmap.GetPixel(x, y);
-                    float luminance = 0.299f * pixel.Red + 0.587f * pixel.Green + 0.114f * pixel.Blue;
-                    float shadowAmount = Math.Max(0, 1.0f - luminance / 128.0f);
-                    float adjust = factor * shadowAmount * 128.0f;
-
-                    byte r = ClampByte((int)(pixel.Red + adjust));
-                    byte g = ClampByte((int)(pixel.Green + adjust));
-                    byte b = ClampByte((int)(pixel.Blue + adjust));
-                    bitmap.SetPixel(x, y, new SKColor(r, g, b, pixel.Alpha));
-                }
-            }
-        }
-
-        private static void ApplyHighlights(SKBitmap bitmap, int highlights)
-        {
-            float factor = highlights / 100.0f;
-
-            for (int y = 0; y < bitmap.Height; y++)
-            {
-                for (int x = 0; x < bitmap.Width; x++)
-                {
-                    var pixel = bitmap.GetPixel(x, y);
-                    float luminance = 0.299f * pixel.Red + 0.587f * pixel.Green + 0.114f * pixel.Blue;
-                    float highlightAmount = Math.Max(0, (luminance - 128.0f) / 127.0f);
-                    float adjust = factor * highlightAmount * 128.0f;
-
-                    byte r = ClampByte((int)(pixel.Red - adjust));
-                    byte g = ClampByte((int)(pixel.Green - adjust));
-                    byte b = ClampByte((int)(pixel.Blue - adjust));
-                    bitmap.SetPixel(x, y, new SKColor(r, g, b, pixel.Alpha));
-                }
-            }
         }
 
         public static byte ClampByte(int value)

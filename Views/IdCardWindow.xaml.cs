@@ -239,6 +239,7 @@ namespace ImageAdjust.Views
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
             var infoText = new TextBlock
             {
@@ -261,6 +262,18 @@ namespace ImageAdjust.Views
             Grid.SetColumn(printBtn, 1);
             grid.Children.Add(printBtn);
 
+            var savePdfBtn = new Button
+            {
+                Content = "\U0001f4be \u062d\u0641\u0638 PDF / Enregistrer PDF",
+                Style = FindResource("ActionButton") as Style,
+                Height = 40,
+                Padding = new Thickness(16, 8, 16, 8),
+                Margin = new Thickness(0, 0, 12, 0)
+            };
+            savePdfBtn.SetBinding(Button.CommandProperty, "SavePdfCommand");
+            Grid.SetColumn(savePdfBtn, 2);
+            grid.Children.Add(savePdfBtn);
+
             var cancelBtn = new Button
             {
                 Content = "\u2716 \u0625\u0644\u063a\u0627\u0621 / Annuler",
@@ -269,7 +282,7 @@ namespace ImageAdjust.Views
                 Padding = new Thickness(16, 8, 16, 8),
                 IsCancel = true
             };
-            Grid.SetColumn(cancelBtn, 2);
+            Grid.SetColumn(cancelBtn, 3);
             grid.Children.Add(cancelBtn);
 
             border.Child = grid;

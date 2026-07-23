@@ -5,6 +5,7 @@ using ImageAdjust.Services;
 using SkiaSharp;
 using System.IO;
 using System.Windows;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
 namespace ImageAdjust.ViewModels
@@ -17,6 +18,10 @@ namespace ImageAdjust.ViewModels
 
         private SKBitmap? _originalFront;
         private SKBitmap? _originalBack;
+        private SKBitmap? _baseFrontPreview;
+        private SKBitmap? _baseBackPreview;
+        private WriteableBitmap? _writableFront;
+        private WriteableBitmap? _writableBack;
         private CancellationTokenSource? _cts;
 
         [ObservableProperty]
@@ -64,15 +69,68 @@ namespace ImageAdjust.ViewModels
                 _originalFront = _imageService.LoadImage(frontPath);
                 _originalBack = _imageService.LoadImage(backPath);
 
-                WindowTitle = $"بطاقة التعريف / Carte d'identité - {Path.GetFileName(frontPath)} & {Path.GetFileName(backPath)}";
+                _baseFrontPreview = CreateBasePreview(_originalFront);
+                _baseBackPreview = CreateBasePreview(_originalBack);
 
-                UpdatePreview();
+                _writableFront = CreateWritable(_baseFrontPreview);
+                _writableBack = CreateWritable(_baseBackPreview);
+
+                FrontPreview = _writableFront;
+                BackPreview = _writableBack;
+
+                WindowTitle = $"بطاقة التعريف / Carte d'identité - {Path.GetFileName(frontPath)} & {Path.GetFileName(backPath)}";
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"خطأ في تحميل الصور / Erreur de chargement: {ex.Message}",
                     "خطأ / Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        private WriteableBitmap CreateWritable(SKBitmap bmp)
+        {
+            int w = bmp.Width;
+            int h = bmp.Height;
+            int stride = w * 4;
+            var wb = new WriteableBitmap(w, h, 96, 96, PixelFormats.Bgra32, null);
+            wb.Lock();
+            try
+            {
+                wb.WritePixels(new Int32Rect(0, 0, w, h), bmp.GetPixels(), h * stride, stride);
+            }
+            finally
+            {
+                wb.Unlock();
+            }
+            return wb;
+        }
+
+        private void UpdateWritable(WriteableBitmap wb, SKBitmap bmp)
+        {
+            int stride = wb.PixelWidth * 4;
+            wb.Lock();
+            try
+            {
+                wb.WritePixels(
+                    new Int32Rect(0, 0, wb.PixelWidth, wb.PixelHeight),
+                    bmp.GetPixels(),
+                    wb.PixelHeight * stride,
+                    stride);
+            }
+            finally
+            {
+                wb.Unlock();
+            }
+        }
+
+        private SKBitmap CreateBasePreview(SKBitmap original)
+        {
+            var scale = Math.Min(
+                (float)DisplayWidth / original.Width,
+                (float)DisplayHeight / original.Height);
+            int pw = (int)(original.Width * scale);
+            int ph = (int)(original.Height * scale);
+            return original.Resize(new SKImageInfo(pw, ph), SKFilterQuality.Medium);
         }
 
         private void InitCropRegions()
@@ -83,7 +141,8 @@ namespace ImageAdjust.ViewModels
 
         private async void QueuePreviewUpdate()
         {
-            if (_originalFront == null || _originalBack == null) return;
+            if (_baseFrontPreview == null || _baseBackPreview == null ||
+                _writableFront == null || _writableBack == null) return;
 
             _cts?.Cancel();
             _cts?.Dispose();
@@ -97,28 +156,21 @@ namespace ImageAdjust.ViewModels
                 await Task.Delay(80, token);
                 token.ThrowIfCancellationRequested();
 
-                var scale = Math.Min(
-                    (float)DisplayWidth / _originalFront.Width,
-                    (float)DisplayHeight / _originalFront.Height);
-                int pw = (int)(_originalFront.Width * scale);
-                int ph = (int)(_originalFront.Height * scale);
-
-                using var frontResized = _originalFront.Resize(new SKImageInfo(pw, ph), SKFilterQuality.Medium);
-                using var backResized = _originalBack.Resize(new SKImageInfo(pw, ph), SKFilterQuality.Medium);
-                if (frontResized == null || backResized == null) return;
+                using var frontCopy = _baseFrontPreview.Copy();
+                using var backCopy = _baseBackPreview.Copy();
                 token.ThrowIfCancellationRequested();
 
                 await Task.Run(() =>
                 {
                     token.ThrowIfCancellationRequested();
-                    _imageService.ApplyAdjustmentsInPlace(frontResized, Settings);
-                    _imageService.ApplyAdjustmentsInPlace(backResized, Settings);
+                    _imageService.ApplyAdjustmentsInPlace(frontCopy, Settings);
+                    _imageService.ApplyAdjustmentsInPlace(backCopy, Settings);
                 }, token);
 
                 token.ThrowIfCancellationRequested();
 
-                FrontPreview = _imageService.ToBitmapSource(frontResized);
-                BackPreview = _imageService.ToBitmapSource(backResized);
+                UpdateWritable(_writableFront, frontCopy);
+                UpdateWritable(_writableBack, backCopy);
             }
             catch (OperationCanceledException) { }
             finally
@@ -160,6 +212,48 @@ namespace ImageAdjust.ViewModels
             Settings.Highlights = 0;
             Settings.Saturation = 0;
             Settings.Contrast = 0;
+        }
+
+        [RelayCommand]
+        private async Task SavePdf()
+        {
+            if (_originalFront == null || _originalBack == null) return;
+
+            var dialog = new Microsoft.Win32.SaveFileDialog
+            {
+                Title = "حفظ PDF / Enregistrer le PDF",
+                Filter = "PDF File|*.pdf",
+                DefaultExt = ".pdf",
+                FileName = "ID_Card.pdf"
+            };
+
+            if (dialog.ShowDialog() != true) return;
+
+            IsProcessing = true;
+
+            try
+            {
+                var (front, back) = await Task.Run(() =>
+                    _imageService.PrepareCardImages(
+                        _originalFront, _originalBack, Settings,
+                        null, null, DisplayWidth, DisplayHeight));
+
+                var pdfBytes = await Task.Run(() => _pdfService.GenerateCardPdf(front, back));
+
+                await File.WriteAllBytesAsync(dialog.FileName, pdfBytes);
+
+                MessageBox.Show("تم حفظ PDF / PDF enregistré",
+                    "نجاح / Succès", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"خطأ في الحفظ / Erreur d'enregistrement: {ex.Message}",
+                    "خطأ / Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                IsProcessing = false;
+            }
         }
 
         [RelayCommand]

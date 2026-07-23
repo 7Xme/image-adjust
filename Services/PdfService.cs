@@ -1,7 +1,11 @@
 using PdfSharp.Pdf;
 using PdfSharp.Drawing;
 using SkiaSharp;
+using System.Collections.Generic;
 using System.IO;
+using System.Runtime.InteropServices;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 
 namespace ImageAdjust.Services
 {
@@ -11,22 +15,55 @@ namespace ImageAdjust.Services
         private const double CardHeightMm = 54.0;
         private const double MmToPoint = 72.0 / 25.4;
 
-        public double CardWidthPt => CardWidthMm * MmToPoint;
-        public double CardHeightPt => CardHeightMm * MmToPoint;
+        private static double CardWidthPt => CardWidthMm * MmToPoint;
+        private static double CardHeightPt => CardHeightMm * MmToPoint;
 
         public byte[] GenerateCardPdf(SKBitmap frontImage, SKBitmap backImage)
         {
             using var doc = new PdfDocument();
+            var streams = new List<MemoryStream>();
+            var images = new List<XImage>();
 
-            AddCardPage(doc, frontImage);
-            AddCardPage(doc, backImage);
+            try
+            {
+                images.Add(BuildXImage(frontImage, streams));
+                images.Add(BuildXImage(backImage, streams));
 
-            using var ms = new MemoryStream();
-            doc.Save(ms, false);
-            return ms.ToArray();
+                foreach (var img in images)
+                    WriteCardPage(doc, img);
+
+                var ms = new MemoryStream();
+                doc.Save(ms, false);
+                return ms.ToArray();
+            }
+            finally
+            {
+                foreach (var img in images) img.Dispose();
+                foreach (var s in streams) s.Dispose();
+            }
         }
 
-        private void AddCardPage(PdfDocument doc, SKBitmap cardImage)
+        private static XImage BuildXImage(SKBitmap bitmap, List<MemoryStream> streams)
+        {
+            int w = bitmap.Width;
+            int h = bitmap.Height;
+            int stride = w * 4;
+            byte[] pixels = new byte[h * stride];
+            Marshal.Copy(bitmap.GetPixels(), pixels, 0, pixels.Length);
+
+            var src = BitmapSource.Create(w, h, 96, 96, PixelFormats.Bgra32, null, pixels, stride);
+
+            var ms = new MemoryStream();
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(src));
+            encoder.Save(ms);
+            ms.Position = 0;
+            streams.Add(ms);
+
+            return XImage.FromStream(ms);
+        }
+
+        private static void WriteCardPage(PdfDocument doc, XImage xImage)
         {
             var page = doc.AddPage();
             page.Width = XUnit.FromMillimeter(CardWidthMm);
@@ -34,16 +71,8 @@ namespace ImageAdjust.Services
 
             using var gfx = XGraphics.FromPdfPage(page);
 
-            using var image = SKImage.FromBitmap(cardImage);
-            using var data = image.Encode(SKEncodedImageFormat.Png, 100);
-            byte[] imageBytes = data.ToArray();
-
-            using var ms = new MemoryStream(imageBytes);
-            var xImage = XImage.FromStream(ms);
-
             double imgW = xImage.PixelWidth;
             double imgH = xImage.PixelHeight;
-
             double scale = Math.Min(CardWidthPt / imgW, CardHeightPt / imgH);
             double drawW = imgW * scale;
             double drawH = imgH * scale;

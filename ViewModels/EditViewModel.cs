@@ -5,6 +5,7 @@ using ImageAdjust.Services;
 using SkiaSharp;
 using System.IO;
 using System.Windows;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
 namespace ImageAdjust.ViewModels
@@ -14,6 +15,8 @@ namespace ImageAdjust.ViewModels
         private readonly ImageProcessingService _imageService = new();
         private readonly PrintService _printService = new();
         private SKBitmap? _originalBitmap;
+        private SKBitmap? _basePreviewBitmap;
+        private WriteableBitmap? _writablePreview;
         private string _sourceFilePath = string.Empty;
         private CancellationTokenSource? _cts;
 
@@ -44,7 +47,28 @@ namespace ImageAdjust.ViewModels
             try
             {
                 _originalBitmap = _imageService.LoadImage(filePath);
-                PreviewImage = _imageService.ToBitmapSource(_originalBitmap);
+                _basePreviewBitmap = CreateBasePreview();
+
+                int w = _basePreviewBitmap.Width;
+                int h = _basePreviewBitmap.Height;
+                int stride = w * 4;
+
+                _writablePreview = new WriteableBitmap(w, h, 96, 96, PixelFormats.Bgra32, null);
+                _writablePreview.Lock();
+                try
+                {
+                    _writablePreview.WritePixels(
+                        new Int32Rect(0, 0, w, h),
+                        _basePreviewBitmap.GetPixels(),
+                        h * stride,
+                        stride);
+                }
+                finally
+                {
+                    _writablePreview.Unlock();
+                }
+
+                PreviewImage = _writablePreview;
                 WindowTitle = $"تحرير / Modifier - {Path.GetFileName(filePath)}";
             }
             catch (Exception ex)
@@ -54,9 +78,16 @@ namespace ImageAdjust.ViewModels
             }
         }
 
+        private SKBitmap CreateBasePreview()
+        {
+            var size = GetPreviewSize(_originalBitmap!, 1200);
+            return _originalBitmap!.Resize(
+                new SKImageInfo(size.width, size.height), SKFilterQuality.Medium);
+        }
+
         private async void QueuePreviewUpdate()
         {
-            if (_originalBitmap == null) return;
+            if (_basePreviewBitmap == null || _writablePreview == null) return;
 
             _cts?.Cancel();
             _cts?.Dispose();
@@ -66,25 +97,33 @@ namespace ImageAdjust.ViewModels
             try
             {
                 await Task.Delay(80, token);
+                token.ThrowIfCancellationRequested();
 
-                if (token.IsCancellationRequested) return;
-
-                var previewSize = GetPreviewSize(_originalBitmap, 1200);
-                using var previewBmp = _originalBitmap.Resize(
-                    new SKImageInfo(previewSize.width, previewSize.height), SKFilterQuality.Medium);
-
-                if (previewBmp == null) return;
-                if (token.IsCancellationRequested) return;
+                using var workingCopy = _basePreviewBitmap.Copy();
+                token.ThrowIfCancellationRequested();
 
                 await Task.Run(() =>
                 {
                     token.ThrowIfCancellationRequested();
-                    _imageService.ApplyAdjustmentsInPlace(previewBmp, Settings);
+                    _imageService.ApplyAdjustmentsInPlace(workingCopy, Settings);
                 }, token);
 
-                if (token.IsCancellationRequested) return;
+                token.ThrowIfCancellationRequested();
 
-                PreviewImage = _imageService.ToBitmapSource(previewBmp);
+                int stride = _writablePreview.PixelWidth * 4;
+                _writablePreview.Lock();
+                try
+                {
+                    _writablePreview.WritePixels(
+                        new Int32Rect(0, 0, _writablePreview.PixelWidth, _writablePreview.PixelHeight),
+                        workingCopy.GetPixels(),
+                        _writablePreview.PixelHeight * stride,
+                        stride);
+                }
+                finally
+                {
+                    _writablePreview.Unlock();
+                }
             }
             catch (OperationCanceledException) { }
         }

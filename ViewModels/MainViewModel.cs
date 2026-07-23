@@ -58,6 +58,7 @@ namespace ImageAdjust.ViewModels
         {
             var dialog = new Microsoft.Win32.OpenFolderDialog();
             dialog.Title = "اختر مجلد الصور / Sélectionnez le dossier d'images";
+            dialog.InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + "\\Downloads";
             if (dialog.ShowDialog() == true)
             {
                 await LoadFolder(dialog.FolderName);
