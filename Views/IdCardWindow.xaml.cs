@@ -289,6 +289,26 @@ namespace ImageAdjust.Views
             resetCropBtn.SetBinding(Button.CommandProperty, "ResetCropCommand");
             btnStack.Children.Add(resetCropBtn);
 
+            var rotateFrontBtn = new Button
+            {
+                Content = "\U0001f500 \u062a\u062f\u0648\u064a\u0631 \u0627\u0644\u0648\u062c\u0647 / Rotation Recto",
+                Style = FindResource("SecondaryButton") as Style,
+                Height = 30,
+                Margin = new Thickness(0, 6, 0, 0)
+            };
+            rotateFrontBtn.SetBinding(Button.CommandProperty, "RotateFrontCommand");
+            btnStack.Children.Add(rotateFrontBtn);
+
+            var rotateBackBtn = new Button
+            {
+                Content = "\U0001f500 \u062a\u062f\u0648\u064a\u0631 \u0627\u0644\u062e\u0644\u0641 / Rotation Verso",
+                Style = FindResource("SecondaryButton") as Style,
+                Height = 30,
+                Margin = new Thickness(0, 2, 0, 0)
+            };
+            rotateBackBtn.SetBinding(Button.CommandProperty, "RotateBackCommand");
+            btnStack.Children.Add(rotateBackBtn);
+
             grid.Children.Add(btnStack);
             border.Child = grid;
             return border;

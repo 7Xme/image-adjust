@@ -269,6 +269,51 @@ namespace ImageAdjust.ViewModels
             QueuePreviewUpdate();
         }
 
+        private static SKBitmap Rotate90(SKBitmap source)
+        {
+            var info = new SKImageInfo(source.Height, source.Width);
+            var rotated = new SKBitmap(info);
+            using var canvas = new SKCanvas(rotated);
+            canvas.Translate(rotated.Width / 2f, rotated.Height / 2f);
+            canvas.RotateDegrees(90);
+            canvas.DrawBitmap(source, -source.Width / 2f, -source.Height / 2f);
+            return rotated;
+        }
+
+        private void DoRotateFront()
+        {
+            if (_originalFront == null) return;
+            _originalFront = Rotate90(_originalFront);
+            _frontHasCrop = false;
+            IsCroppingFront = false;
+            InitCropRegions();
+            _baseFrontPreview?.Dispose();
+            _baseFrontPreview = CreateBasePreview(_originalFront);
+            _writableFront = CreateWritable(_baseFrontPreview);
+            FrontPreview = _writableFront;
+            QueuePreviewUpdate();
+        }
+
+        private void DoRotateBack()
+        {
+            if (_originalBack == null) return;
+            _originalBack = Rotate90(_originalBack);
+            _backHasCrop = false;
+            IsCroppingBack = false;
+            InitCropRegions();
+            _baseBackPreview?.Dispose();
+            _baseBackPreview = CreateBasePreview(_originalBack);
+            _writableBack = CreateWritable(_baseBackPreview);
+            BackPreview = _writableBack;
+            QueuePreviewUpdate();
+        }
+
+        [RelayCommand]
+        private void RotateFront() => DoRotateFront();
+
+        [RelayCommand]
+        private void RotateBack() => DoRotateBack();
+
         [RelayCommand]
         private void ToggleCropFront()
         {
