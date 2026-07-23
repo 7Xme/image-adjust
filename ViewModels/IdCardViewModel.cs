@@ -192,6 +192,32 @@ namespace ImageAdjust.ViewModels
         }
 
         [RelayCommand]
+        private void AutoCropFront()
+        {
+            if (_originalFront == null) return;
+            var rect = _imageService.AutoTrimBounds(_originalFront);
+            float sx = (float)DisplayWidth / _originalFront.Width;
+            float sy = (float)DisplayHeight / _originalFront.Height;
+            FrontCrop.Set((int)(rect.Left * sx), (int)(rect.Top * sy),
+                          (int)(rect.Width * sx), (int)(rect.Height * sy));
+            IsCroppingFront = true;
+            IsCroppingBack = false;
+        }
+
+        [RelayCommand]
+        private void AutoCropBack()
+        {
+            if (_originalBack == null) return;
+            var rect = _imageService.AutoTrimBounds(_originalBack);
+            float sx = (float)DisplayWidth / _originalBack.Width;
+            float sy = (float)DisplayHeight / _originalBack.Height;
+            BackCrop.Set((int)(rect.Left * sx), (int)(rect.Top * sy),
+                         (int)(rect.Width * sx), (int)(rect.Height * sy));
+            IsCroppingBack = true;
+            IsCroppingFront = false;
+        }
+
+        [RelayCommand]
         private void ToggleCropFront()
         {
             IsCroppingFront = !IsCroppingFront;

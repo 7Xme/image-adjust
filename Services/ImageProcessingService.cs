@@ -121,6 +121,53 @@ namespace ImageAdjust.Services
             return result;
         }
 
+        public SKRectI AutoTrimBounds(SKBitmap bitmap)
+        {
+            var bg = bitmap.GetPixel(0, 0);
+            int bgR = bg.Red, bgG = bg.Green, bgB = bg.Blue;
+            int threshold = 40;
+
+            int x1 = 0, y1 = 0, x2 = bitmap.Width - 1, y2 = bitmap.Height - 1;
+
+            for (int x = 0; x < bitmap.Width; x++)
+                for (int y = 0; y < bitmap.Height; y++)
+                {
+                    var p = bitmap.GetPixel(x, y);
+                    if (Math.Abs(p.Red - bgR) > threshold || Math.Abs(p.Green - bgG) > threshold || Math.Abs(p.Blue - bgB) > threshold)
+                    { x1 = x; goto topDone; }
+                }
+            topDone:;
+
+            for (int x = bitmap.Width - 1; x >= 0; x--)
+                for (int y = 0; y < bitmap.Height; y++)
+                {
+                    var p = bitmap.GetPixel(x, y);
+                    if (Math.Abs(p.Red - bgR) > threshold || Math.Abs(p.Green - bgG) > threshold || Math.Abs(p.Blue - bgB) > threshold)
+                    { x2 = x; goto rightDone; }
+                }
+            rightDone:;
+
+            for (int y = 0; y < bitmap.Height; y++)
+                for (int x = x1; x <= x2; x++)
+                {
+                    var p = bitmap.GetPixel(x, y);
+                    if (Math.Abs(p.Red - bgR) > threshold || Math.Abs(p.Green - bgG) > threshold || Math.Abs(p.Blue - bgB) > threshold)
+                    { y1 = y; goto topEdgeDone; }
+                }
+            topEdgeDone:;
+
+            for (int y = bitmap.Height - 1; y >= 0; y--)
+                for (int x = x1; x <= x2; x++)
+                {
+                    var p = bitmap.GetPixel(x, y);
+                    if (Math.Abs(p.Red - bgR) > threshold || Math.Abs(p.Green - bgG) > threshold || Math.Abs(p.Blue - bgB) > threshold)
+                    { y2 = y; goto bottomDone; }
+                }
+            bottomDone:;
+
+            return new SKRectI(x1, y1, x2 + 1, y2 + 1);
+        }
+
         public static byte ClampByte(int value)
         {
             return (byte)Math.Clamp(value, 0, 255);

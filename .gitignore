@@ -2,3 +2,4 @@
 /bin
 *.exe
 *.exe
+obj/Debug/net8.0-windows/apphost.exe
